@@ -14,7 +14,14 @@ namespace Users.API.Services
         // ─────────────────────────────
         public UserResponse Register(RegisterUserRequest request)
         {
-            // USR-001: email duplicado → 409 Conflict
+            // USR-002: campos inválidos → 400
+            if (string.IsNullOrWhiteSpace(request.Nombre) ||
+                string.IsNullOrWhiteSpace(request.Apellido) ||
+                string.IsNullOrWhiteSpace(request.Email) ||
+                string.IsNullOrWhiteSpace(request.Password))
+                throw new ValidationException("USR-002", "Los datos del usuario son inválidos.");
+
+            // USR-001: email duplicado → 409
             if (_users.Any(u => u.Email == request.Email))
                 throw new BusinessRuleException("USR-001", $"El email '{request.Email}' ya está registrado.");
 
@@ -39,10 +46,15 @@ namespace Users.API.Services
         // ─────────────────────────────
         public UserResponse Login(LoginUserRequest request)
         {
+            // USR-002: campos inválidos → 400
+            if (string.IsNullOrWhiteSpace(request.Email) ||
+                string.IsNullOrWhiteSpace(request.Password))
+                throw new ValidationException("USR-002", "Los datos del usuario son inválidos.");
+
             // Buscar usuario por email
             var user = _users.FirstOrDefault(u => u.Email == request.Email);
 
-            // USR-003: credenciales incorrectas (email no existe) → 401
+            // USR-003: email no existe → 401
             if (user is null)
                 throw new UnauthorizedException("USR-003", "Credenciales incorrectas.");
 
@@ -59,14 +71,12 @@ namespace Users.API.Services
             {
                 user.IntentosFallidos++;
 
-                // Si llega a 3 intentos → bloquear
                 if (user.IntentosFallidos >= 3)
                 {
                     user.Activo = false;
                     throw new ForbiddenException("USR-004", "Su cuenta fue bloqueada por superar el máximo de intentos fallidos. Contacte a soporte.");
                 }
 
-                // USR-003: contraseña incorrecta → 401
                 throw new UnauthorizedException("USR-003", "Credenciales incorrectas.");
             }
 
@@ -75,7 +85,7 @@ namespace Users.API.Services
             return ToResponse(user);
         }
 
-        // Convertir User → UserResponse (sin exponer PasswordHash)
+        // Convertir User → UserResponse sin exponer PasswordHash
         private static UserResponse ToResponse(User user) => new()
         {
             Id = user.Id,
