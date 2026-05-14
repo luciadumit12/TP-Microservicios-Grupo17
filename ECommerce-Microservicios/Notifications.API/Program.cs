@@ -18,11 +18,13 @@ builder.Services.AddHealthChecks();
 
 builder.Services.AddScoped<NotificationService>();
 
-// HttpClient para llamar a Users.API
+// HttpClient para llamar a Users.API — acepta certificado de desarrollo local
 builder.Services.AddHttpClient("UsersAPI", client =>
 {
-    // Puerto de Users.API según launchSettings.json
     client.BaseAddress = new Uri("https://localhost:7075/");
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
 });
 
 builder.Services.AddExceptionHandler<NotFoundExceptionHandler>();
