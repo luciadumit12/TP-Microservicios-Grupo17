@@ -10,7 +10,6 @@ namespace Notifications.API.Services
         private readonly List<string> _tiposValidos = new() { "Email", "Push", "SMS" };
         private readonly IHttpClientFactory _httpClientFactory;
 
-        // Recibimos el IHttpClientFactory por inyección
         public NotificationService(IHttpClientFactory httpClientFactory)
         {
             _httpClientFactory = httpClientFactory;
@@ -18,15 +17,18 @@ namespace Notifications.API.Services
 
         public async Task<NotificationResponse> EnviarNotificacion(SendNotificationRequest request)
         {
-            // NTF-002: datos inválidos → 400
             if (string.IsNullOrWhiteSpace(request.Mensaje) ||
                 string.IsNullOrWhiteSpace(request.Tipo) ||
                 !_tiposValidos.Contains(request.Tipo))
                 throw new ValidationException("NTF-002", "Los datos de la notificación son inválidos.");
 
-            // NTF-001: verificar que el usuario existe en Users.API → 404
             var client = _httpClientFactory.CreateClient("UsersAPI");
-            var response = await client.GetAsync($"api/users/{request.UsuarioId}");
+            var url = $"api/users/{request.UsuarioId}";
+            Console.WriteLine($"[DEBUG] Llamando a: {client.BaseAddress}{url}");
+
+            var response = await client.GetAsync(url);
+            Console.WriteLine($"[DEBUG] Status: {response.StatusCode}");
+
             if (!response.IsSuccessStatusCode)
                 throw new NotFoundException("NTF-001", "El usuario destinatario no fue encontrado.");
 
@@ -50,7 +52,6 @@ namespace Notifications.API.Services
                 .Where(n => n.UsuarioId == usuarioId)
                 .ToList();
 
-            // NTF-003: no hay notificaciones → 404
             if (notificaciones.Count == 0)
                 throw new NotFoundException("NTF-003", "No se encontraron notificaciones para el usuario.");
 
