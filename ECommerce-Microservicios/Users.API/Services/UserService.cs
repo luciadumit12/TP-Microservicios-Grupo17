@@ -6,7 +6,6 @@ namespace Users.API.Services
 {
     public class UserService
     {
-        // Lista en memoria que simula la base de datos
         private readonly List<User> _users = [];
 
         // ─────────────────────────────
@@ -51,7 +50,6 @@ namespace Users.API.Services
                 string.IsNullOrWhiteSpace(request.Password))
                 throw new ValidationException("USR-002", "Los datos del usuario son inválidos.");
 
-            // Buscar usuario por email
             var user = _users.FirstOrDefault(u => u.Email == request.Email);
 
             // USR-003: email no existe → 401
@@ -82,6 +80,17 @@ namespace Users.API.Services
 
             // Login exitoso → resetear intentos
             user.IntentosFallidos = 0;
+            return ToResponse(user);
+        }
+
+        // ─────────────────────────────
+        // GET POR ID — uso interno entre microservicios
+        // ─────────────────────────────
+        public UserResponse GetById(Guid id)
+        {
+            var user = _users.FirstOrDefault(u => u.Id == id);
+            if (user is null)
+                throw new NotFoundException("USR-003", "Usuario no encontrado.");
             return ToResponse(user);
         }
 
