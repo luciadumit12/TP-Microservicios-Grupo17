@@ -15,13 +15,15 @@ namespace Notifications.API.Controllers
             _notificationService = notificationService;
         }
 
+        // POST /api/notifications/send → 201 Created
         [HttpPost("send")]
-        public IActionResult Send([FromBody] SendNotificationRequest request)
+        public async Task<IActionResult> Send([FromBody] SendNotificationRequest request)
         {
-            var notificacion = _notificationService.EnviarNotificacion(request);
+            var notificacion = await _notificationService.EnviarNotificacion(request);
             return StatusCode(201, notificacion);
         }
 
+        // GET /api/notifications/{userId} → 200 OK
         [HttpGet("{userId}")]
         public IActionResult GetByUser(Guid userId)
         {
