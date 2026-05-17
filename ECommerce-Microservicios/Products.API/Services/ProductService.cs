@@ -31,7 +31,10 @@ namespace Products.API.Services
 
         public Task<ProductResponse> CreateAsync(CreateProductRequest request)
         {
-            if (string.IsNullOrWhiteSpace(request.Nombre) || request.Precio <= 0 || request.Stock < 0 || string.IsNullOrWhiteSpace(request.Categoria))
+            if (string.IsNullOrWhiteSpace(request.Nombre) ||
+                request.Precio <= 0 ||
+                request.Stock < 0 ||
+                string.IsNullOrWhiteSpace(request.Categoria))
                 throw new ValidationException("PRD-002", "Los datos del producto son inválidos.");
 
             var existe = _products.Any(p =>
@@ -61,7 +64,10 @@ namespace Products.API.Services
             var product = _products.FirstOrDefault(p => p.Id == id)
                 ?? throw new NotFoundException("PRD-001", "Producto no encontrado.");
 
-            if (string.IsNullOrWhiteSpace(request.Nombre) || request.Precio <= 0 || request.Stock < 0 || string.IsNullOrWhiteSpace(request.Categoria))
+            if (string.IsNullOrWhiteSpace(request.Nombre) ||
+                request.Precio <= 0 ||
+                request.Stock < 0 ||
+                string.IsNullOrWhiteSpace(request.Categoria))
                 throw new ValidationException("PRD-002", "Los datos del producto son inválidos.");
 
             product.Nombre = request.Nombre;
