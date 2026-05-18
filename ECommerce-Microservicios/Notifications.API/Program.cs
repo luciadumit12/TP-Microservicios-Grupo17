@@ -27,6 +27,7 @@ Log.Logger = new LoggerConfiguration()
 var builder = WebApplication.CreateBuilder(args);
 //le dice a la aplicacion que use Serilog para registrar todo lo que pasa
 builder.Host.UseSerilog();
+
 //CONTROLLERS
 //configuraciones con builder.services.add ..
 //Le avisamos a la API que va a recibir llamadas HTTP, se prepara para recibir por ej POST /api/notifications/send
@@ -41,6 +42,7 @@ builder.Services.AddSwaggerGen();
 //permite saber si la aplicacion esta funcionando correctamente
 //se puede consultar en /health, /health/ready y /health/live
 builder.Services.AddHealthChecks();
+
 //ACA USA LA CLASE DE LA CARPETA SERVICES
 //el AddScoped crea un NotificationService por cada llamada HTTP
 //cada vez que el Controller recibe una llamada HTTP, esta linea le pasa automaticamente el NotificationService
@@ -57,23 +59,25 @@ builder.Services.AddHttpClient("UsersAPI", client =>
 {
     ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
 });
+
 //ACA USA LA CLASE DE LA CARPETA EXCEPTIONHANDLERS
 //Existen 3 manejadores de errores si el NotificationService detecta un problema
 //estas lineas solo anotan, no hacen nada.
-//cuando algo no se encuentra, por ej el usuario no existe en Users.API
+//cuando algo no se encuentra: NTF-001 (usuario) y NTF-003 (notificaciones) → devuelve 404
 builder.Services.AddExceptionHandler<NotFoundExceptionHandler>();
-//cuando se viola una regla de negocio
-builder.Services.AddExceptionHandler<BusinessRuleExceptionHandler>();
-//cuando ocurre cualquier error inesperado que los otros dos no pudieron manejar
+//cuando los datos enviados son invalidos: NTF-002 → por ej mensaje vacio o tipo incorrecto → devuelve 400
+builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
+//cuando ocurre cualquier error inesperado que los otros dos no pudieron manejar: NTF-004 → devuelve 500
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
-//gracias a esto se escribe el error en formato estandar JSON
-builder.Services.AddProblemDetails();
+
 //toma toda la configuracion que hizo el builder y construye la aplicacion
 //despues de aca no se puede configurar mas nada.
 var app = builder.Build();
+
 //Cada vez que se lance un error, esta linea atrapa ese error y
 //busca en la lista de handlers quien puede manejarlo. Activa los handlers y devuelve el JSON.
 app.UseExceptionHandler();
+
 //verifica si la aplicacion esta corriendo desde Visual Studio en modo desarrollo
 //si esta en desarrollo activa el swagger
 //activa la interfaz visual en el navegador y estaria listo para PROBAR
@@ -99,12 +103,16 @@ app.Use(async (context, next) =>
         await next();
     }
 });
+
+
 //activa el logging automatico de Serilog para cada llamada HTTP
 //registra cuando llego la llamada, cuanto tardo en procesarse y que resultado devolvio
 app.UseSerilogRequestLogging();
+
 //cuando llega una llamada HTTP con su URL, esta linea se encarga de
 //mandar al controller correspondiente
 app.MapControllers();
+
 //activa los endpoints de health checks para saber si la aplicacion esta funcionando
 //GET /health → estado general de la aplicacion
 //GET /health/ready → si la aplicacion esta lista para recibir llamadas
@@ -112,6 +120,7 @@ app.MapControllers();
 app.MapHealthChecks("/health");
 app.MapHealthChecks("/health/ready");
 app.MapHealthChecks("/health/live");
+
 //despues de configurar todo, arranca la aplicacion para
 //que se puedan recibir las llamadas
 app.Run();

@@ -1,5 +1,6 @@
 ﻿//GLOBALEXCEPTIONHANDLER.CS
 //atrapa cualquier error inesperado que los otros dos handlers no pudieron manejar
+//se activa para NTF-004 → error inesperado en el servicio o la persistencia
 //siempre devuelve 500 porque si llego hasta aca es un error que el sistema no esperaba
 using Microsoft.AspNetCore.Diagnostics;
 

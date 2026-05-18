@@ -1,7 +1,8 @@
 ﻿//NOTFOUNDEXCEPTIONHANDLER.CS
 //atrapa la NotFoundException que lanza el NotificationService
-//por ej cuando el usuario no existe en Users.API o cuando no tiene notificaciones
-//arma la respuesta 404 con el formato del TP
+//NTF-001 → cuando el usuario no existe en Users.API
+//NTF-003 → cuando el usuario no tiene notificaciones registradas
+//en ambos casos devuelve 404
 using Microsoft.AspNetCore.Diagnostics;
 using Notifications.API.Exceptions;
 
@@ -24,11 +25,13 @@ namespace Notifications.API.ExceptionHandlers
                 title = "Not Found",
                 status = 404,
                 detail = "El recurso solicitado no fue encontrado.",
-                //la URL donde ocurrio el error, por ej /api/notifications/a1b2c3d4
+                //la URL donde ocurrio el error, por ej /api/notifications/send
                 instance = context.Request.Path.Value,
-                //el codigo del catalogo del TP, por ej NTF-001 o NTF-003
+                //el codigo del catalogo del TP → NTF-001 o NTF-003
                 errorCode = ex.ErrorCode,
                 //el mensaje que se definio cuando se lanzo la excepcion
+                //por ej "El usuario destinatario no fue encontrado."
+                //o "No se encontraron notificaciones para el usuario."
                 errorMessage = ex.Message
             }, cancellationToken);
 
