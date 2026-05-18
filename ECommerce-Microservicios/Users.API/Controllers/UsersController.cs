@@ -8,11 +8,10 @@ using Users.API.Services;
 
 namespace Users.API.Controllers
 {
-    [ApiController]                          // Indica que esta clase es un controller de API
-    [Route("api/users")]                     // Todos los endpoints de esta clase empiezan con /api/users
+    [ApiController]
+    [Route("api/users")]
     public class UsersController : ControllerBase
     {
-        // El Service se inyecta — el Controller no lo crea, lo recibe
         private readonly UserService _userService;
 
         public UsersController(UserService userService)
@@ -22,31 +21,35 @@ namespace Users.API.Controllers
 
         // ─────────────────────────────
         // POST /api/users/register
-        // Registrar un nuevo usuario
-        // Respuestas posibles: 201 Created, 400 Bad Request, 409 Conflict
+        // Respuestas posibles: 201, 400, 409
         // ─────────────────────────────
         [HttpPost("register")]
         public IActionResult Register([FromBody] RegisterUserRequest request)
         {
-            // Llamamos al Service — él se encarga de validar y registrar
             var response = _userService.Register(request);
-
-            // 201 Created + la ubicación del nuevo recurso + el body con los datos
             return CreatedAtAction(nameof(Register), new { id = response.Id }, response);
         }
 
         // ─────────────────────────────
         // POST /api/users/login
-        // Autenticar un usuario existente
-        // Respuestas posibles: 200 OK, 400 Bad Request, 401 Unauthorized, 403 Forbidden
+        // Respuestas posibles: 200, 400, 401, 403
         // ─────────────────────────────
         [HttpPost("login")]
         public IActionResult Login([FromBody] LoginUserRequest request)
         {
-            // Llamamos al Service — él verifica credenciales y maneja el bloqueo
             var response = _userService.Login(request);
+            return Ok(response);
+        }
 
-            // 200 OK con los datos del usuario autenticado
+        // ─────────────────────────────
+        // GET /api/users/{id}
+        // Endpoint interno para verificación entre microservicios
+        // Usado por Notifications.API para validar que el usuario existe
+        // ─────────────────────────────
+        [HttpGet("{id}")]
+        public IActionResult GetById(Guid id)
+        {
+            var response = _userService.GetById(id);
             return Ok(response);
         }
     }
