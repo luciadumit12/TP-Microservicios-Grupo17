@@ -1,4 +1,8 @@
-﻿using Microsoft.AspNetCore.Diagnostics;
+﻿
+//GLOBALEXCEPTIONHANDLER.CS
+//atrapa cualquier error inesperado que los otros dos handlers no pudieron manejar
+//siempre devuelve 500 porque si llego hasta aca es un error que el sistema no esperaba
+using Microsoft.AspNetCore.Diagnostics;
 
 namespace Orders.API.ExceptionHandlers
 {
@@ -7,13 +11,15 @@ namespace Orders.API.ExceptionHandlers
         public async ValueTask<bool> TryHandleAsync(
             HttpContext context, Exception exception, CancellationToken cancellationToken)
         {
+            //no verifica el tipo de error porque atrapa cualquier cosa
+            //siempre devuelve 500 con el codigo ORD-007
             context.Response.StatusCode = 500;
             await context.Response.WriteAsJsonAsync(new
             {
                 type = "https://tools.ietf.org/html/rfc7231#section-6.6.1",
                 title = "Internal Server Error",
                 status = 500,
-                detail = "Ocurrió un error inesperado.",
+                detail = "Ocurrio un error inesperado.",
                 instance = context.Request.Path.Value,
                 errorCode = "ORD-007",
                 errorMessage = "Error interno al procesar la orden."

@@ -1,4 +1,9 @@
-﻿using Microsoft.AspNetCore.Diagnostics;
+﻿//BUSINESSRULEEXCEPTIONHANDLER.CS
+//atrapa la BusinessRuleException que lanza el OrderService
+//por ej cuando se intenta cambiar el estado de una orden de Entregada a Pendiente
+//o cuando no hay stock suficiente
+//arma la respuesta 409 o 422 segun el codigo del error
+using Microsoft.AspNetCore.Diagnostics;
 using Orders.API.Exceptions;
 
 namespace Orders.API.ExceptionHandlers
@@ -8,8 +13,12 @@ namespace Orders.API.ExceptionHandlers
         public async ValueTask<bool> TryHandleAsync(
             HttpContext context, Exception exception, CancellationToken cancellationToken)
         {
+            //verifica si el error que llego es una BusinessRuleException
+            //si no lo es, devuelve false y el sistema prueba con el siguiente handler
             if (exception is not BusinessRuleException ex) return false;
 
+            //si el codigo es ORD-005 (stock insuficiente) devuelve 422
+            //para cualquier otro codigo de BusinessRuleException devuelve 409
             var status = ex.ErrorCode == "ORD-005" ? 422 : 409;
 
             context.Response.StatusCode = status;
