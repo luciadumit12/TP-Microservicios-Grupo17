@@ -1,6 +1,6 @@
-﻿
-//GLOBALEXCEPTIONHANDLER.CS
-//atrapa cualquier error inesperado que los otros dos handlers no pudieron manejar
+﻿//GLOBALEXCEPTIONHANDLER.CS
+//atrapa cualquier error inesperado que los otros tres handlers no pudieron manejar
+//se activa para ORD-007 → error inesperado en el servicio o la persistencia
 //siempre devuelve 500 porque si llego hasta aca es un error que el sistema no esperaba
 using Microsoft.AspNetCore.Diagnostics;
 
@@ -20,11 +20,13 @@ namespace Orders.API.ExceptionHandlers
                 title = "Internal Server Error",
                 status = 500,
                 detail = "Ocurrio un error inesperado.",
+                //la URL donde ocurrio el error
                 instance = context.Request.Path.Value,
                 errorCode = "ORD-007",
                 errorMessage = "Error interno al procesar la orden."
             }, cancellationToken);
 
+            //devuelve true para avisarle al sistema que este handler manejo el error
             return true;
         }
     }

@@ -1,7 +1,10 @@
 ﻿//NOTFOUNDEXCEPTIONHANDLER.CS
 //atrapa la NotFoundException que lanza el OrderService
-//por ej cuando se busca una orden que no existe
-//arma la respuesta 404 con el formato del TP
+//se activa en 3 casos segun el catalogo del TP:
+//ORD-001 → cuando se busca una orden que no existe
+//ORD-003 → cuando el usuario no existe en Users.API (cuando se conecte)
+//ORD-004 → cuando el producto no existe en Products.API (cuando se conecte)
+//en todos los casos devuelve 404
 using Microsoft.AspNetCore.Diagnostics;
 using Orders.API.Exceptions;
 
@@ -26,9 +29,11 @@ namespace Orders.API.ExceptionHandlers
                 detail = "El recurso solicitado no fue encontrado.",
                 //la URL donde ocurrio el error, por ej /api/orders/00000000
                 instance = context.Request.Path.Value,
-                //el codigo del catalogo del TP, por ej ORD-001
+                //el codigo del catalogo del TP que se definio cuando se lanzo la excepcion
+                //por ej ORD-001, ORD-003 o ORD-004
                 errorCode = ex.ErrorCode,
                 //el mensaje que se definio cuando se lanzo la excepcion
+                //por ej "Orden no encontrada."
                 errorMessage = ex.Message
             }, cancellationToken);
 

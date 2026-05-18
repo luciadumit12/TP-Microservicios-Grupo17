@@ -1,4 +1,4 @@
-//Cuando llega una llamada HTTP por ej 'crear order'. el sistema debe saber:
+﻿//Cuando llega una llamada HTTP por ej 'crear order'. el sistema debe saber:
 //Quien la recibe  ? Controller:  recibe la llamada HTTP
 //Quien la procesa ? Service:  decide que hacer con la llamada 
 //Quien maneja los errores ? ExceptionHandlers:  categoriza los errores que se pueden presentar 
@@ -10,7 +10,6 @@
 
 
 //nombres de las carpetas de las clases que se nombran en program
-using Microsoft.Extensions.Hosting;
 using Orders.API.ExceptionHandlers;
 using Orders.API.Services;
 
@@ -42,14 +41,18 @@ builder.Services.AddSwaggerGen();
 //por ej cuando llega un POST /api/orders, el OrderService crea la orden y le asigna estado y la guarda. 
 builder.Services.AddScoped<OrderService>();
 
-//ACA USA LA CLASE DE LA CARPETA EXCETIONHANDLERS
-//Existen 3 manejadores de errores si el OrderService detecta un problema
-//estas lineas solo anotan, no hacen nada. 
-//cuando algo no se encuentra 
+//ACA USA LA CLASE DE LA CARPETA EXCEPTIONHANDLERS
+//Existen 4 manejadores de errores si el OrderService detecta un problema
+//estas lineas solo anotan, no hacen nada.
+//cuando algo no se encuentra: ORD-001 (orden), ORD-003 (usuario), ORD-004 (producto) → devuelve 404
 builder.Services.AddExceptionHandler<NotFoundExceptionHandler>();
-//cuando se viola una regla de negocio 
+//cuando los datos enviados son invalidos: ORD-002 → por ej cuando se crea una orden sin items → devuelve 400
+builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
+//cuando se viola una regla de negocio:
+//ORD-005 → stock insuficiente → devuelve 422
+//ORD-006 → transicion de estado invalida → devuelve 409
 builder.Services.AddExceptionHandler<BusinessRuleExceptionHandler>();
-//cuando ocurre cualquier error inesperado que los otros dos no pudieron manejar
+//cuando ocurre cualquier error inesperado que los otros tres no pudieron manejar: ORD-007 → devuelve 500
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 //gracias a esto se escribe el error en formato estandar JSON
 builder.Services.AddProblemDetails();
@@ -70,7 +73,7 @@ if (app.Environment.IsDevelopment())
 }
 
 //Cada vez que se lance un error, esta linea atrapa ese error y 
-//busc� en la lista de handlers qui�n puede manejarlo. Activa los handlers y devuelve el JSON.
+//buscá en la lista de handlers quién puede manejarlo. Activa los handlers y devuelve el JSON.
 app.UseExceptionHandler();
 
 //cuando llega una llamada HTTP con su URL, esta linea se encarga de 
