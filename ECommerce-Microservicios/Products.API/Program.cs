@@ -12,6 +12,14 @@ Log.Logger = new LoggerConfiguration()
 
 builder.Host.UseSerilog();
 
+// HttpClient para Orders.API
+builder.Services.AddHttpClient("OrdersAPI", client =>
+{
+    client.BaseAddress = new Uri("https://localhost:7168/");
+    
+    
+});
+
 // Servicios
 builder.Services.AddControllers();
 builder.Services.AddScoped<ProductService>();
