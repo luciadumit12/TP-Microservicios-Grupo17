@@ -69,6 +69,8 @@ builder.Services.AddExceptionHandler<NotFoundExceptionHandler>();
 builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
 //cuando ocurre cualquier error inesperado que los otros dos no pudieron manejar: NTF-004 → devuelve 500
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+//gracias a esto se escribe el error en formato estandar JSON
+builder.Services.AddProblemDetails();
 
 //toma toda la configuracion que hizo el builder y construye la aplicacion
 //despues de aca no se puede configurar mas nada.
