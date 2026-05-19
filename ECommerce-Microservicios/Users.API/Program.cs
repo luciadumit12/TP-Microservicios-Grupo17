@@ -1,3 +1,7 @@
+// Program.cs — Punto de entrada de la aplicación
+// Acá se configura y registra todo lo que necesita la app para funcionar:
+// Serilog (logs), Services, ExceptionHandlers, Swagger, Health Checks y Correlation ID
+
 using Serilog;
 using Users.API.ExceptionHandlers;
 using Users.API.Services;
@@ -11,8 +15,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Host.UseSerilog();
 
+// AddScoped = se crea una instancia nueva por cada request HTTP
 builder.Services.AddScoped<UserService>();
 
+// Los específicos van primero, GlobalExceptionHandler va último como red de seguridad
 builder.Services.AddExceptionHandler<NotFoundExceptionHandler>();
 builder.Services.AddExceptionHandler<UnauthorizedExceptionHandler>();
 builder.Services.AddExceptionHandler<ForbiddenExceptionHandler>();
@@ -22,7 +28,17 @@ builder.Services.AddProblemDetails();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+
+// Swagger con XML comments — lee los comentarios /// de los controllers
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new() { Title = "Users.API", Version = "v1" });
+    var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    if (File.Exists(xmlPath))
+        c.IncludeXmlComments(xmlPath);
+});
+
 builder.Services.AddHealthChecks();
 
 var app = builder.Build();
@@ -37,7 +53,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// Correlation ID — genera un ID único por request y lo propaga
+// Correlation ID — genera un ID único por request y lo propaga en logs y respuestas
 app.Use(async (context, next) =>
 {
     var correlationId = context.Request.Headers["X-Correlation-Id"].FirstOrDefault()
@@ -52,6 +68,9 @@ app.Use(async (context, next) =>
 app.UseSerilogRequestLogging();
 app.MapControllers();
 
+// /health → estado general
+// /health/ready → ¿está listo para recibir requests?
+// /health/live → ¿está vivo el proceso?
 app.MapHealthChecks("/health");
 app.MapHealthChecks("/health/ready");
 app.MapHealthChecks("/health/live");

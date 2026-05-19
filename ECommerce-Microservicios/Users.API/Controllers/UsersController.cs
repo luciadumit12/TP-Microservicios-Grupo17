@@ -10,6 +10,7 @@ namespace Users.API.Controllers
 {
     [ApiController]
     [Route("api/users")]
+    [Tags("Users")]
     public class UsersController : ControllerBase
     {
         private readonly UserService _userService;
@@ -19,38 +20,46 @@ namespace Users.API.Controllers
             _userService = userService;
         }
 
-        // ─────────────────────────────
-        // POST /api/users/register
-        // Respuestas posibles: 201, 400, 409
-        // ─────────────────────────────
+        /// <summary>
+        /// Registrar un nuevo usuario en el sistema.
+        /// </summary>
+        /// <remarks>
+        /// Ejemplo de request:
+        ///
+        ///     POST /api/users/register
+        ///     {
+        ///         "nombre": "María",
+        ///         "apellido": "González",
+        ///         "email": "maria@email.com",
+        ///         "password": "MiPassword123!"
+        ///     }
+        ///
+        /// </remarks>
         [HttpPost("register")]
+        [ProducesResponseType(StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public IActionResult Register([FromBody] RegisterUserRequest request)
         {
             var response = _userService.Register(request);
             return CreatedAtAction(nameof(Register), new { id = response.Id }, response);
         }
 
-        // ─────────────────────────────
-        // POST /api/users/login
-        // Respuestas posibles: 200, 400, 401, 403
-        // ─────────────────────────────
+        /// <summary>
+        /// Autenticar un usuario existente con email y contraseña.
+        /// </summary>
+        /// <remarks>
+        /// Ejemplo de request:
+        ///
+        ///     POST /api/users/login
+        ///     {
+        ///         "email": "maria@email.com",
+        ///         "password": "MiPassword123!"
+        ///     }
+        ///
+        /// </remarks>
         [HttpPost("login")]
-        public IActionResult Login([FromBody] LoginUserRequest request)
-        {
-            var response = _userService.Login(request);
-            return Ok(response);
-        }
-
-        // ─────────────────────────────
-        // GET /api/users/{id}
-        // Endpoint interno para verificación entre microservicios
-        // Usado por Notifications.API para validar que el usuario existe
-        // ─────────────────────────────
-        [HttpGet("{id}")]
-        public IActionResult GetById(Guid id)
-        {
-            var response = _userService.GetById(id);
-            return Ok(response);
-        }
-    }
-}
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseTyp
