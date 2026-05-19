@@ -1,9 +1,16 @@
-﻿using Microsoft.AspNetCore.Diagnostics;
+﻿// Captura CUALQUIER excepción que no fue manejada por los otros handlers.
+// Es la "red de seguridad" — si algo inesperado falla, este handler lo atrapa.
+// Siempre devuelve HTTP 500 con errorCode USR-006.
+// IMPORTANTE: loggea el error completo internamente pero NO lo expone al cliente
+// (para no filtrar información sensible del sistema).
+
+using Microsoft.AspNetCore.Diagnostics;
 
 namespace Users.API.ExceptionHandlers
 {
     public class GlobalExceptionHandler : IExceptionHandler
     {
+        // ILogger para registrar el error completo en los logs de Serilog
         private readonly ILogger<GlobalExceptionHandler> _logger;
 
         public GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger)
@@ -16,6 +23,7 @@ namespace Users.API.ExceptionHandlers
             Exception exception,
             CancellationToken cancellationToken)
         {
+            // Logueamos el error completo internamente — nunca lo exponemos al cliente
             _logger.LogError(exception, "Error inesperado: {Message}", exception.Message);
 
             httpContext.Response.StatusCode = StatusCodes.Status500InternalServerError;

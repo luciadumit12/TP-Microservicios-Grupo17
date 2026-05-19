@@ -1,4 +1,9 @@
-﻿using Microsoft.AspNetCore.Diagnostics;
+﻿// Captura las ForbiddenException y arma la respuesta HTTP 403
+// Se usa cuando el usuario está bloqueado e intenta loguearse
+// USR-004 → bloqueado por 3 intentos fallidos consecutivos
+// USR-005 → bloqueado manualmente por detección de fraude
+
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Users.API.Exceptions;
 
@@ -11,6 +16,7 @@ namespace Users.API.ExceptionHandlers
             Exception exception,
             CancellationToken cancellationToken)
         {
+            // Si la excepción NO es ForbiddenException, no la manejamos acá
             if (exception is not ForbiddenException forbiddenException)
                 return false;
 

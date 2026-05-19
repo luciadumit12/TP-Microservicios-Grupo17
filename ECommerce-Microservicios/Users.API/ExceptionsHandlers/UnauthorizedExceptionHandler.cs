@@ -1,4 +1,8 @@
-﻿using Microsoft.AspNetCore.Diagnostics;
+﻿// Captura las UnauthorizedException y arma la respuesta HTTP 401
+// Se usa cuando el usuario manda credenciales incorrectas (email o contraseña mal)
+// errorCode USR-003 según el catálogo del TP
+
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Users.API.Exceptions;
 
@@ -11,6 +15,7 @@ namespace Users.API.ExceptionHandlers
             Exception exception,
             CancellationToken cancellationToken)
         {
+            // Si la excepción NO es UnauthorizedException, no la manejamos acá
             if (exception is not UnauthorizedException unauthorizedException)
                 return false;
 
