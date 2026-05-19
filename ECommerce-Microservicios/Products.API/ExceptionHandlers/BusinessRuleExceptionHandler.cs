@@ -3,14 +3,22 @@ using Products.API.Exceptions;
 
 namespace Products.API.ExceptionHandlers
 {
+    /// <summary>
+    /// Maneja excepciones de reglas de negocio.
+    /// Devuelve HTTP 409 Conflict.
+    /// </summary>
     public class BusinessRuleExceptionHandler : IExceptionHandler
     {
         public async ValueTask<bool> TryHandleAsync(
-            HttpContext context, Exception exception, CancellationToken cancellationToken)
+            HttpContext context,
+            Exception exception,
+            CancellationToken cancellationToken)
         {
-            if (exception is not BusinessRuleException ex) return false;
+            if (exception is not BusinessRuleException ex)
+                return false;
 
             context.Response.StatusCode = 409;
+
             await context.Response.WriteAsJsonAsync(new
             {
                 type = "https://tools.ietf.org/html/rfc7231#section-6.5.9",
@@ -21,6 +29,7 @@ namespace Products.API.ExceptionHandlers
                 errorCode = ex.ErrorCode,
                 errorMessage = ex.Message
             }, cancellationToken);
+
             return true;
         }
     }

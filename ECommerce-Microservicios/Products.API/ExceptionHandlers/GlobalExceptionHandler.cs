@@ -2,21 +2,29 @@
 
 namespace Products.API.ExceptionHandlers
 {
+    /// <summary>
+    /// Maneja errores inesperados de la aplicación.
+    /// Devuelve HTTP 500 Internal Server Error.
+    /// </summary>
     public class GlobalExceptionHandler : IExceptionHandler
     {
         private readonly ILogger<GlobalExceptionHandler> _logger;
 
-        public GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger)
+        public GlobalExceptionHandler(
+            ILogger<GlobalExceptionHandler> logger)
         {
             _logger = logger;
         }
 
         public async ValueTask<bool> TryHandleAsync(
-            HttpContext context, Exception exception, CancellationToken cancellationToken)
+            HttpContext context,
+            Exception exception,
+            CancellationToken cancellationToken)
         {
             _logger.LogError(exception, "Error inesperado");
 
             context.Response.StatusCode = 500;
+
             await context.Response.WriteAsJsonAsync(new
             {
                 type = "https://tools.ietf.org/html/rfc7231#section-6.6.1",
@@ -27,6 +35,7 @@ namespace Products.API.ExceptionHandlers
                 errorCode = "PRD-005",
                 errorMessage = "Error interno al procesar el producto."
             }, cancellationToken);
+
             return true;
         }
     }
