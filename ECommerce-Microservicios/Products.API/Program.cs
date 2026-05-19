@@ -1,48 +1,37 @@
 using Products.API.ExceptionHandlers;
 using Products.API.Services;
-using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Serilog
-Log.Logger = new LoggerConfiguration()
-    .WriteTo.Console()
-    .WriteTo.File("logs/products.json", rollingInterval: RollingInterval.Day)
-    .CreateLogger();
-
-builder.Host.UseSerilog();
-
-// HttpClient para Orders.API
-builder.Services.AddHttpClient("OrdersAPI", client =>
-{
-    client.BaseAddress = new Uri("https://localhost:7168/");
-    
-    
-});
-
-// Servicios
 builder.Services.AddControllers();
-builder.Services.AddScoped<ProductService>();
 
-// Exception Handlers
-builder.Services.AddExceptionHandler<NotFoundExceptionHandler>();
-builder.Services.AddExceptionHandler<BusinessRuleExceptionHandler>();
-builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
-builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
-builder.Services.AddProblemDetails();
-
-// Swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Health Checks
-builder.Services.AddHealthChecks();
+builder.Services.AddScoped<ProductService>();
 
+// HttpClient para consultar a Orders.API y verificar si el producto tiene órdenes activas (PRD-004)
+builder.Services.AddHttpClient("OrdersAPI", client =>
+{
+    client.BaseAddress = new Uri("https://localhost:7168/");
+});
+
+builder.Services.AddExceptionHandler<NotFoundExceptionHandler>();
+builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
+builder.Services.AddExceptionHandler<BusinessRuleExceptionHandler>();
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
+
+builder.Services.AddHealthChecks();
 var app = builder.Build();
 
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
 app.UseExceptionHandler();
-app.UseSwagger();
-app.UseSwaggerUI();
 app.MapControllers();
 app.MapHealthChecks("/health");
 
