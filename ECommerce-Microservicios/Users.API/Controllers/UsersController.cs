@@ -62,4 +62,26 @@ namespace Users.API.Controllers
         [HttpPost("login")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseTyp
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public IActionResult Login([FromBody] LoginUserRequest request)
+        {
+            var response = _userService.Login(request);
+            return Ok(response);
+        }
+
+        /// <summary>
+        /// Obtener un usuario por ID. Endpoint interno para comunicación entre microservicios.
+        /// </summary>
+        [HttpGet("{id}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public IActionResult GetById(Guid id)
+        {
+            var response = _userService.GetById(id);
+            return Ok(response);
+        }
+    }
+}
