@@ -1,8 +1,9 @@
-﻿//NOTFOUNDEXCEPTIONHANDLER.CS
-//atrapa la NotFoundException que lanza el NotificationService
-//NTF-001 → cuando el usuario no existe en Users.API
-//NTF-003 → cuando el usuario no tiene notificaciones registradas
-//en ambos casos devuelve 404
+﻿// Captura las NotFoundException y arma la respuesta HTTP 404
+// con el formato de error que pide el TP (errorCode, errorMessage, etc.)
+// Maneja dos casos de Notifications.API:
+// NTF-001 → cuando el usuario no existe en Users.API
+// NTF-003 → cuando el usuario no tiene notificaciones registradas
+
 using Microsoft.AspNetCore.Diagnostics;
 using Notifications.API.Exceptions;
 
@@ -13,11 +14,11 @@ namespace Notifications.API.ExceptionHandlers
         public async ValueTask<bool> TryHandleAsync(
             HttpContext context, Exception exception, CancellationToken cancellationToken)
         {
-            //verifica si el error que llego es una NotFoundException
-            //si no lo es, devuelve false y el sistema prueba con el siguiente handler
+            // Si la excepción NO es NotFoundException, no la manejamos acá
+            // Devolvemos false para que el sistema pruebe con el siguiente handler
             if (exception is not NotFoundException ex) return false;
 
-            //si es una NotFoundException, arma la respuesta 404 con el formato del TP
+            // Armamos la respuesta 404 con el formato exacto que pide el TP
             context.Response.StatusCode = 404;
             await context.Response.WriteAsJsonAsync(new
             {
@@ -25,17 +26,12 @@ namespace Notifications.API.ExceptionHandlers
                 title = "Not Found",
                 status = 404,
                 detail = "El recurso solicitado no fue encontrado.",
-                //la URL donde ocurrio el error, por ej /api/notifications/send
-                instance = context.Request.Path.Value,
-                //el codigo del catalogo del TP → NTF-001 o NTF-003
-                errorCode = ex.ErrorCode,
-                //el mensaje que se definio cuando se lanzo la excepcion
-                //por ej "El usuario destinatario no fue encontrado."
-                //o "No se encontraron notificaciones para el usuario."
-                errorMessage = ex.Message
+                instance = context.Request.Path.Value,  // URL donde ocurrió el error
+                errorCode = ex.ErrorCode,               // NTF-001 o NTF-003
+                errorMessage = ex.Message               // Mensaje del catálogo del TP
             }, cancellationToken);
 
-            //devuelve true para avisarle al sistema que este handler manejo el error
+            // Devolvemos true para avisarle al sistema que este handler manejó el error
             return true;
         }
     }

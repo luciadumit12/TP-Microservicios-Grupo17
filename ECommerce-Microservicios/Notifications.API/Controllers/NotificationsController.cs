@@ -1,51 +1,58 @@
-﻿//El Controller es la puerta de entrada de Notifications.API
-//Cuando llega una llamada HTTP, el Controller la recibe y se la pasa al NotificationService
-//El Controller no decide nada, solo recibe y delega
+﻿// El Controller es la puerta de entrada de Notifications.API.
+// Recibe los requests HTTP, llama al Service y devuelve la respuesta.
+// NO tiene lógica de negocio — solo delega al Service.
 
-//nombres de las carpetas de las clases que se nombran en este archivo
 using Microsoft.AspNetCore.Mvc;
 using Notifications.API.DTOs;
 using Notifications.API.Services;
 
 namespace Notifications.API.Controllers
 {
-    //esta clase es el Controller de Notifications.API
-    //ACA SE DEFINEN LOS 2 ENDPOINTS DE LA API
-    //[ApiController] le dice a .NET que esta clase recibe llamadas HTTP
-    //[Route("api/notifications")] define la URL base de todos los endpoints de esta clase
     [ApiController]
     [Route("api/notifications")]
+    [Tags("Notifications")]
     public class NotificationsController : ControllerBase
     {
-        //variable que guarda el NotificationService para poder usarlo en todos los metodos
+        // El Service se inyecta — el Controller no lo crea, lo recibe
         private readonly NotificationService _notificationService;
 
-        //cuando el Controller arranca, .NET le entrega el NotificationService automaticamente
-        //gracias a que lo registramos en Program.cs con AddScoped<NotificationService>()
         public NotificationsController(NotificationService notificationService)
         {
             _notificationService = notificationService;
         }
 
-        //ENDPOINT 1: POST /api/notifications/send
-        //recibe una llamada POST con los datos de la notificacion en el body
-        //le pide al NotificationService que verifique el usuario y cree la notificacion
-        //devuelve 201 con la notificacion creada
-        //el async/await significa que espera la respuesta de Users.API antes de continuar
+        /// <summary>
+        /// Registrar y simular el envío de una notificación a un usuario.
+        /// </summary>
+        /// <remarks>
+        /// Ejemplo de request:
+        ///
+        ///     POST /api/notifications/send
+        ///     {
+        ///         "usuarioId": "a1b2c3d4-0000-0000-0000-111122223333",
+        ///         "mensaje": "Su orden #f1e2d3c4 fue confirmada.",
+        ///         "tipo": "Email"
+        ///     }
+        ///
+        /// </remarks>
         [HttpPost("send")]
+        [ProducesResponseType(StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]   // NTF-002: datos inválidos
+        [ProducesResponseType(StatusCodes.Status404NotFound)]     // NTF-001: usuario no encontrado
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)] // NTF-004
         public async Task<IActionResult> Send([FromBody] SendNotificationRequest request)
         {
             var notificacion = await _notificationService.EnviarNotificacion(request);
             return StatusCode(201, notificacion);
         }
 
-        //ENDPOINT 2: GET /api/notifications/{userId}
-        //recibe una llamada GET con el id del usuario en la URL
-        //por ej GET /api/notifications/a1b2c3d4-...
-        //le pide al NotificationService todas las notificaciones de ese usuario
-        //si el usuario no tiene notificaciones el Service lanza NotFoundException con NTF-003
-        //si tiene notificaciones devuelve 200 con la lista
+        /// <summary>
+        /// Listar todas las notificaciones de un usuario.
+        /// </summary>
         [HttpGet("{userId}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]     // NTF-003: sin notificaciones
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)] // NTF-004
         public IActionResult GetByUser(Guid userId)
         {
             var notificaciones = _notificationService.ObtenerPorUsuario(userId);
