@@ -1,7 +1,7 @@
 ﻿//El Service es el cerebro de Orders.API
 //Toda la logica de negocio vive aca
-//cada vez que controller recibe una llamada HTTP, esta linea le pasa automaticamente a OrdersService ya que sabe que hacer con ella llamada
-//por ej cuando llega un POST /api/orders, el OrderService crea la orden y le asigna estado y la guarda. 
+//cada vez que el Controller recibe una llamada HTTP, le pasa la llamada al OrderService para que la procese
+//por ej cuando llega un POST /api/orders, el OrderService valida el usuario, los productos, el stock y crea la orden
 
 //nombres de las carpetas de las clases que se nombran en este archivo
 using Orders.API.DTOs;
@@ -15,6 +15,17 @@ namespace Orders.API.Services
         //lista en memoria donde se guardan las ordenes mientras la app esta corriendo
         //con la libreria que nos de el profe vamos a reemplazar esta linea por la conexion real a la base de datos
         private readonly List<Order> _ordenes = new();
+
+        //variable que guarda el HttpClientFactory para poder conectarse con Users.API y Products.API
+        //se registra en Program.cs con AddHttpClient("UsersAPI") y AddHttpClient("ProductsAPI")
+        private readonly IHttpClientFactory _httpClientFactory;
+
+        //cuando el Service arranca, .NET le entrega el HttpClientFactory automaticamente
+        //gracias a que lo registramos en Program.cs con AddHttpClient
+        public OrderService(IHttpClientFactory httpClientFactory)
+        {
+            _httpClientFactory = httpClientFactory;
+        }
 
         //define que cambios de estado son validos
         //por ej: si una orden esta en Pendiente, solo puede pasar a Confirmada o Cancelada
@@ -60,28 +71,62 @@ namespace Orders.API.Services
 
         //METODO 3: CrearOrden
         //el Controller le pide que cree una orden nueva
+        //el metodo es async porque necesita esperar las respuestas de Users.API y Products.API
         //primero valida que la orden tenga al menos un item
-        //si no tiene items lanza ValidationException con el codigo ORD-002
-        //si tiene items crea la orden con estado Pendiente y la guarda en la lista
-        //convierte la orden en OrderResponse y la devuelve al Controller
-        public OrderResponse CrearOrden(CreateOrderRequest request)
+        //despues verifica que el usuario exista en Users.API → ORD-003
+        //despues verifica que cada producto exista en Products.API → ORD-004
+        //despues verifica que haya stock suficiente para cada producto → ORD-005
+        //si todo esta bien crea la orden con los precios reales y la guarda en la lista
+        public async Task<OrderResponse> CrearOrden(CreateOrderRequest request)
         {
             //si el cliente mando una orden sin items, avisa que los datos son invalidos
             if (request.Items == null || request.Items.Count == 0)
                 throw new ValidationException("ORD-002", "Los datos de la orden son invalidos.");
 
-            //convierte cada OrderItemRequest en un OrderItem del sistema
-            //el precio queda en 0 hasta que se conecte con Products.API
-            var items = request.Items.Select(i => new OrderItem
+            //ORD-003: verifica que el usuario exista en Users.API
+            //crea el HttpClient configurado para hablar con Users.API
+            var usersClient = _httpClientFactory.CreateClient("UsersAPI");
+            //le pregunta a Users.API si el usuario existe, no necesita DTO porque solo le importa el status code de la respuesta
+            var userResponse = await usersClient.GetAsync($"api/users/{request.UsuarioId}");
+            //si Users.API responde que no existe, lanza NotFoundException con ORD-003
+            if (!userResponse.IsSuccessStatusCode)
+                throw new NotFoundException("ORD-003", "Usuario no encontrado al crear la orden.");
+
+            //ORD-004 y ORD-005: verifica que cada producto exista y tenga stock suficiente en Products.API
+            var productsClient = _httpClientFactory.CreateClient("ProductsAPI");
+            var items = new List<OrderItem>();
+
+            foreach (var item in request.Items)
             {
-                ProductoId = i.ProductoId,
-                Cantidad = i.Cantidad,
-                PrecioUnitario = 0
-            }).ToList();
+                //le pregunta a Products.API si el producto existe
+                var productResponse = await productsClient.GetAsync($"api/products/{item.ProductoId}");
+                //si Products.API responde que no existe, lanza NotFoundException con ORD-004
+                if (!productResponse.IsSuccessStatusCode)
+                    throw new NotFoundException("ORD-004", "Producto no encontrado al crear la orden.");
+
+                //deserializa la respuesta de Products.API para obtener el precio y el stock
+                //ProductoDto es una clase interna que solo usa el OrderService para leer la respuesta de Products.API
+                //no va en la carpeta DTOs porque no es un objeto que ve el cliente
+                var product = await productResponse.Content.ReadFromJsonAsync<ProductoDto>()
+                    ?? throw new NotFoundException("ORD-004", "Producto no encontrado al crear la orden.");
+
+                //ORD-005: verifica que haya stock suficiente para la cantidad solicitada
+                if (product.Stock < item.Cantidad)
+                    throw new BusinessRuleException("ORD-005",
+                        $"Stock insuficiente para '{product.Nombre}'. Disponible: {product.Stock}, solicitado: {item.Cantidad}.");
+
+                //si el producto existe y hay stock, agrega el item con el precio real de Products.API
+                items.Add(new OrderItem
+                {
+                    ProductoId = item.ProductoId,
+                    Cantidad = item.Cantidad,
+                    PrecioUnitario = product.Precio
+                });
+            }
 
             //crea la orden con todos sus campos
             //el id lo genera el sistema automaticamente
-            //el total se calcula sumando cantidad por precio de cada item
+            //el total se calcula sumando cantidad por precio real de cada item
             //el estado arranca siempre en Pendiente
             //la fecha la asigna el sistema automaticamente
             var orden = new Order
@@ -143,5 +188,17 @@ namespace Orders.API.Services
             Estado = orden.Estado,
             FechaCreacion = orden.FechaCreacion
         };
+
+        //DTO INTERNO: Para leer el mensaje http entre APIS, no entre apli-cliente.
+        //ProductoDto representa los datos que devuelve Products.API cuando se consulta un producto
+        //solo lo usa el OrderService internamente para leer el precio y el stock
+        //no va en la carpeta DTOs porque no es un objeto que ve el cliente
+        private class ProductoDto
+        {
+            public Guid Id { get; set; }
+            public string Nombre { get; set; } = string.Empty;
+            public decimal Precio { get; set; }
+            public int Stock { get; set; }
+        }
     }
 }

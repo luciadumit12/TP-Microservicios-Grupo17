@@ -1,9 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
-
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!--le dice a .NET que genere un archivo XML con todos los comentarios del codigo-->
+    <!--swagger lee ese archivo para mostrar la documentacion de cada endpoint-->
+    <!--sin esta linea swagger no puede leer los comentarios que vas a agregar en el Controller-->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!--evita que Visual Studio muestre advertencias en los metodos que no tengan comentarios-->
+    <!--sin esta linea aparecerian cientos de advertencias amarillas en todo el proyecto-->
+    <NoWarn>$(NoWarn);1591</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
