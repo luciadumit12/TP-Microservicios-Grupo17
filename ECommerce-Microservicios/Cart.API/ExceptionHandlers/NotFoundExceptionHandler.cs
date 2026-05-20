@@ -3,14 +3,22 @@ using Cart.API.Exceptions;
 
 namespace Cart.API.ExceptionHandlers
 {
+    /// <summary>
+    /// Maneja excepciones de recursos no encontrados.
+    /// Devuelve HTTP 404 Not Found.
+    /// </summary>
     public class NotFoundExceptionHandler : IExceptionHandler
     {
         public async ValueTask<bool> TryHandleAsync(
-            HttpContext context, Exception exception, CancellationToken cancellationToken)
+            HttpContext context,
+            Exception exception,
+            CancellationToken cancellationToken)
         {
-            if (exception is not NotFoundException ex) return false;
+            if (exception is not NotFoundException ex)
+                return false;
 
             context.Response.StatusCode = 404;
+
             await context.Response.WriteAsJsonAsync(new
             {
                 type = "https://tools.ietf.org/html/rfc7231#section-6.5.4",
@@ -21,6 +29,7 @@ namespace Cart.API.ExceptionHandlers
                 errorCode = ex.ErrorCode,
                 errorMessage = ex.Message
             }, cancellationToken);
+
             return true;
         }
     }
