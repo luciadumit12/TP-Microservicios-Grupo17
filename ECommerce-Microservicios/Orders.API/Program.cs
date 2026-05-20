@@ -45,14 +45,23 @@ builder.Services.AddControllers();
 //GET  /api/orders/{id}
 //PUT  /api/orders/{id}/status
 builder.Services.AddEndpointsApiExplorer();
+
 //genera el swagger, lee la info de la linea anterior y lo convierte en botones POST, etc
-builder.Services.AddSwaggerGen();
+//tambien le dice a swagger que lea el archivo XML que genera el .csproj
+//ese archivo XML contiene todos los comentarios /// del Controller
+//sin esto swagger no muestra las descripciones ni los ejemplos de cada endpoint
+builder.Services.AddSwaggerGen(options =>
+{
+    var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    options.IncludeXmlComments(xmlPath);
+});
 
 //se activa el health checks que permite saber si la aplicacion esta funcionando correctamente
 //se puede consultar en /health, /health/ready y /health/live
-//GET /health → estado general de la aplicación. Responde Healthy si la app está corriendo.
-//GET / health / ready → si la app está lista para recibir llamadas. En un sistema real verificaría si la base de datos está conectada, si los servicios externos responden, etc. Por ahora como no tenemos base de datos real, siempre responde Healthy.
-//GET /health/live → si la app está viva. Es el más básico — solo verifica que el proceso está corriendo. Siempre responde Healthy mientras la app esté levantada.
+//GET /health → estado general de la aplicacion. Responde Healthy si la app esta corriendo.
+//GET /health/ready → si la app esta lista para recibir llamadas.
+//GET /health/live → si la app esta viva. Solo verifica que el proceso esta corriendo.
 builder.Services.AddHealthChecks();
 
 //ACA USA LA CLASE DE LA CARPETA SERVICES
@@ -60,6 +69,31 @@ builder.Services.AddHealthChecks();
 //cada vez que el Controller recibe una llamada HTTP, esta linea le pasa automaticamente el OrderService
 //por ej cuando llega un POST /api/orders, el OrderService crea la orden y le asigna estado y la guarda.
 builder.Services.AddScoped<OrderService>();
+
+//ACA SE CONFIGURA LA CONEXION CON USERS.API
+//cuando el OrderService necesite verificar si un usuario existe antes de crear una orden, usa este HttpClient
+//sin esta conexion no se puede validar ORD-003 → usuario no encontrado
+//BaseAddress es la direccion donde esta corriendo Users.API
+builder.Services.AddHttpClient("UsersAPI", client =>
+{
+    client.BaseAddress = new Uri("https://localhost:7075/");
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+});
+
+//ACA SE CONFIGURA LA CONEXION CON PRODUCTS.API
+//cuando el OrderService necesite verificar si un producto existe y obtener su precio y stock, usa este HttpClient
+//sin esta conexion no se puede validar ORD-004 → producto no encontrado
+//ni ORD-005 → stock insuficiente
+//BaseAddress es la direccion donde esta corriendo Products.API
+builder.Services.AddHttpClient("ProductsAPI", client =>
+{
+    client.BaseAddress = new Uri("https://localhost:7268/");
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+});
 
 //ACA USA LA CLASE DE LA CARPETA EXCEPTIONHANDLERS
 //Existen 4 manejadores de errores si el OrderService detecta un problema
