@@ -3,14 +3,22 @@ using Cart.API.Exceptions;
 
 namespace Cart.API.ExceptionHandlers
 {
+    /// <summary>
+    /// Maneja excepciones de reglas de negocio.
+    /// Devuelve HTTP 422 Unprocessable Entity.
+    /// </summary>
     public class BusinessRuleExceptionHandler : IExceptionHandler
     {
         public async ValueTask<bool> TryHandleAsync(
-            HttpContext context, Exception exception, CancellationToken cancellationToken)
+            HttpContext context,
+            Exception exception,
+            CancellationToken cancellationToken)
         {
-            if (exception is not BusinessRuleException ex) return false;
+            if (exception is not BusinessRuleException ex)
+                return false;
 
             context.Response.StatusCode = 422;
+
             await context.Response.WriteAsJsonAsync(new
             {
                 type = "https://tools.ietf.org/html/rfc4918#section-11.2",
@@ -21,6 +29,7 @@ namespace Cart.API.ExceptionHandlers
                 errorCode = ex.ErrorCode,
                 errorMessage = ex.Message
             }, cancellationToken);
+
             return true;
         }
     }
