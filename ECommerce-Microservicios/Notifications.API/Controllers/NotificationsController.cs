@@ -1,7 +1,6 @@
 ﻿// El Controller es la puerta de entrada de Notifications.API.
 // Recibe los requests HTTP, llama al Service y devuelve la respuesta.
 // NO tiene lógica de negocio — solo delega al Service.
-
 using Microsoft.AspNetCore.Mvc;
 using Notifications.API.DTOs;
 using Notifications.API.Services;
@@ -37,9 +36,9 @@ namespace Notifications.API.Controllers
         /// </remarks>
         [HttpPost("send")]
         [ProducesResponseType(StatusCodes.Status201Created)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]   // NTF-002: datos inválidos
-        [ProducesResponseType(StatusCodes.Status404NotFound)]     // NTF-001: usuario no encontrado
-        [ProducesResponseType(StatusCodes.Status500InternalServerError)] // NTF-004
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> Send([FromBody] SendNotificationRequest request)
         {
             var notificacion = await _notificationService.EnviarNotificacion(request);
@@ -49,13 +48,14 @@ namespace Notifications.API.Controllers
         /// <summary>
         /// Listar todas las notificaciones de un usuario.
         /// </summary>
+        //el async/await significa que espera que el Service busque las notificaciones en la base de datos
         [HttpGet("{userId}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]     // NTF-003: sin notificaciones
-        [ProducesResponseType(StatusCodes.Status500InternalServerError)] // NTF-004
-        public IActionResult GetByUser(Guid userId)
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> GetByUser(Guid userId)
         {
-            var notificaciones = _notificationService.ObtenerPorUsuario(userId);
+            var notificaciones = await _notificationService.ObtenerPorUsuario(userId);
             return Ok(notificaciones);
         }
     }

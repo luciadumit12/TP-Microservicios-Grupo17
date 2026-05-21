@@ -2,6 +2,7 @@
 // Acá se configura y registra todo lo que necesita la app para funcionar:
 // Serilog (logs), Services, ExceptionHandlers, Swagger, Health Checks y Correlation ID
 
+using Notifications.API.Data;
 using Notifications.API.ExceptionHandlers;
 using Notifications.API.Services;
 using Serilog;
@@ -38,6 +39,15 @@ builder.Services.AddSwaggerGen(c =>
 
 builder.Services.AddHealthChecks();
 
+//ACA USA LA CLASE DE LA CARPETA DATA
+//el DatabaseInitializer crea la tabla notifications en la base de datos cuando arranca la app
+//si la tabla ya existe no hace nada
+builder.Services.AddSingleton<DatabaseInitializer>();
+
+//el NotificationRepository maneja todas las operaciones con la base de datos SQLite
+//el AddScoped crea un NotificationRepository nuevo por cada llamada HTTP
+builder.Services.AddScoped<NotificationRepository>();
+
 // AddScoped = se crea un NotificationService nuevo por cada request HTTP
 builder.Services.AddScoped<NotificationService>();
 
@@ -59,11 +69,16 @@ builder.Services.AddHttpClient("UsersAPI", client =>
 // Los específicos van primero, GlobalExceptionHandler va último como red de seguridad
 // ─────────────────────────────
 builder.Services.AddExceptionHandler<NotFoundExceptionHandler>();       // NTF-001, NTF-003 → 404
-builder.Services.AddExceptionHandler<BusinessRuleExceptionHandler>();   // NTF-002 → 400
+builder.Services.AddExceptionHandler<ValidationExceptionHandler>();     // NTF-002 → 400
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();         // NTF-004 → 500
 builder.Services.AddProblemDetails();
 
 var app = builder.Build();
+
+//inicializa la base de datos al arrancar la aplicacion
+//crea la tabla notifications en el archivo notifications.db si no existe
+//si la tabla ya existe no hace nada
+app.Services.GetRequiredService<DatabaseInitializer>().Initialize();
 
 // Activa los handlers — intercepta cualquier excepción no manejada
 app.UseExceptionHandler();
