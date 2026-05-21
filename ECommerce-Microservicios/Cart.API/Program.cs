@@ -1,7 +1,8 @@
-using System.Reflection;
+using Cart.API.Data;
 using Cart.API.ExceptionHandlers;
 using Cart.API.Services;
 using Serilog;
+using System.Reflection;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -24,7 +25,7 @@ builder.Services.AddSwaggerGen(options =>
     {
         Title = "Cart API",
         Version = "v1",
-        Description = "Microservicio encargado de la gestión del carrito."
+        Description = "API para la gestión del carrito del e-commerce.."
     });
 
     // Habilita XML Comments en Swagger
@@ -65,6 +66,8 @@ builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
 builder.Services.AddProblemDetails();
 
+builder.Services.AddScoped<CartService>();
+builder.Services.AddScoped<CartRepository>();
 var app = builder.Build();
 
 app.UseExceptionHandler();
