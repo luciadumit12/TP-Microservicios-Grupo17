@@ -25,20 +25,28 @@ namespace Cart.API.Services
         private async Task ValidarUsuarioExisteAsync(Guid userId)
         {
             if (userId == Guid.Empty)
-                throw new ValidationException("CRT-004", "El ID del usuario no puede estar vacío."); //Si está vacío: Lanza inmediatamente una ValidationException(CRT-004).
+                throw new ValidationException("CRT-004", "El ID del usuario no puede estar vacío.");
 
-            // Llamada real a Users.API para verificar existencia
-            var userResponse = await _usersClient.GetAsync($"api/users/{userId}");
-
-            if (userResponse.StatusCode == System.Net.HttpStatusCode.NotFound)
+            try
             {
-                // Si Users.API devuelve 404, significa que el GUID no corresponde a ningún usuario registrado
-                throw new NotFoundException("CRT-006", "El usuario especificado no existe.");
+                // Intentamos llamar a la API
+                var userResponse = await _usersClient.GetAsync($"api/users/{userId}");
+
+                // Si la respuesta es 404, lanzamos el error de negocio controlado
+                if (userResponse.StatusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    throw new NotFoundException("CRT-006", "El usuario especificado no existe.");
+                }
+
+                // Esto lanzará una excepción si el status code no es 2xx
+                userResponse.EnsureSuccessStatusCode();
             }
-
-            if (!userResponse.IsSuccessStatusCode)
+            catch (HttpRequestException ex) // Aquí 'ex' es la variable que causaba el aviso
             {
-                throw new Exception("Error interno al validar el usuario en Users.API.");
+                Console.WriteLine($"Error de red al conectar con Users.API: {ex.Message}");
+
+                // Lanzamos una excepción que tu middleware de errores sepa manejar
+                throw new Exception("El servicio de Usuarios no está disponible.");
             }
         }
 
