@@ -1,13 +1,11 @@
-﻿//VALIDATIONEXCEPTIONHANDLER.CS
-//atrapa la ValidationException que lanza el OrderService
-//se activa en este caso segun el catalogo del TP:
-//ORD-002 → cuando se intenta crear una orden sin items o con datos faltantes
-//por ej cuando el cliente manda un POST /api/orders sin items en el body
+﻿//atrapa la ValidationException que lanza el NotificationService
+//se activa para NTF-002 → cuando los datos de la notificacion son invalidos
+//por ej cuando el mensaje esta vacio o el tipo no es Email, Push o SMS
 //devuelve 400
 using Microsoft.AspNetCore.Diagnostics;
-using Orders.API.Exceptions;
+using Notifications.API.Exceptions;
 
-namespace Orders.API.ExceptionHandlers
+namespace Notifications.API.ExceptionHandlers
 {
     public class ValidationExceptionHandler : IExceptionHandler
     {
@@ -26,12 +24,9 @@ namespace Orders.API.ExceptionHandlers
                 title = "Bad Request",
                 status = 400,
                 detail = "Los datos enviados son invalidos.",
-                //la URL donde ocurrio el error, por ej /api/orders
                 instance = context.Request.Path.Value,
-                //el codigo del catalogo del TP → ORD-002
+                //el codigo del catalogo del TP → NTF-002
                 errorCode = ex.ErrorCode,
-                //el mensaje que se definio cuando se lanzo la excepcion
-                //por ej "Los datos de la orden son invalidos."
                 errorMessage = ex.Message
             }, cancellationToken);
 
