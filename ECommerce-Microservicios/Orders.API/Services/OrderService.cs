@@ -4,6 +4,7 @@
 //por ej cuando llega un POST /api/orders, el OrderService valida el usuario, los productos, el stock y crea la orden
 
 //nombres de las carpetas de las clases que se nombran en este archivo
+using Orders.API.Data;
 using Orders.API.DTOs;
 using Orders.API.Exceptions;
 using Orders.API.Models;
@@ -12,18 +13,19 @@ namespace Orders.API.Services
 {
     public class OrderService
     {
-        //lista en memoria donde se guardan las ordenes mientras la app esta corriendo
-        //con la libreria que nos de el profe vamos a reemplazar esta linea por la conexion real a la base de datos
-        private readonly List<Order> _ordenes = new();
+        //variable que guarda el Repository para poder hablar con la base de datos SQLite
+        //reemplaza la lista en memoria que teniamos antes
+        private readonly OrderRepository _repository;
 
         //variable que guarda el HttpClientFactory para poder conectarse con Users.API y Products.API
         //se registra en Program.cs con AddHttpClient("UsersAPI") y AddHttpClient("ProductsAPI")
         private readonly IHttpClientFactory _httpClientFactory;
 
-        //cuando el Service arranca, .NET le entrega el HttpClientFactory automaticamente
-        //gracias a que lo registramos en Program.cs con AddHttpClient
-        public OrderService(IHttpClientFactory httpClientFactory)
+        //cuando el Service arranca, .NET le entrega el Repository y el HttpClientFactory automaticamente
+        //gracias a que los registramos en Program.cs
+        public OrderService(OrderRepository repository, IHttpClientFactory httpClientFactory)
         {
+            _repository = repository;
             _httpClientFactory = httpClientFactory;
         }
 
@@ -43,14 +45,12 @@ namespace Orders.API.Services
         //el Controller le pide todas las ordenes
         //si viene un usuarioId filtra por ese usuario
         //si no viene ningun usuarioId devuelve todas las ordenes
+        //le pide las ordenes al Repository que las busca en la base de datos SQLite
         //convierte cada Order en un OrderResponse antes de devolvérselo al Controller
-        public List<OrderResponse> ObtenerTodas(Guid? usuarioId)
+        public async Task<List<OrderResponse>> ObtenerTodas(Guid? usuarioId)
         {
-            var ordenes = _ordenes.AsEnumerable();
-
-            //si el cliente mando un usuarioId, filtra solo las ordenes de ese usuario
-            if (usuarioId.HasValue)
-                ordenes = ordenes.Where(o => o.UsuarioId == usuarioId.Value);
+            //le pide al Repository todas las ordenes de la base de datos
+            var ordenes = await _repository.ObtenerTodas(usuarioId);
 
             //convierte cada Order en OrderResponse y los devuelve en una lista
             return ordenes.Select(MapearAResponse).ToList();
@@ -58,12 +58,14 @@ namespace Orders.API.Services
 
         //METODO 2: ObtenerPorId
         //el Controller le pide una orden especifica por su id
+        //le pide la orden al Repository que la busca en la base de datos SQLite
         //si la orden no existe lanza NotFoundException con el codigo ORD-001
         //el NotFoundExceptionHandler la atrapa y devuelve 404
         //si la orden existe la convierte en OrderResponse y la devuelve
-        public OrderResponse ObtenerPorId(Guid id)
+        public async Task<OrderResponse> ObtenerPorId(Guid id)
         {
-            var orden = _ordenes.FirstOrDefault(o => o.Id == id)
+            //le pide al Repository la orden por su id
+            var orden = await _repository.ObtenerPorId(id)
                 ?? throw new NotFoundException("ORD-001", "Orden no encontrada.");
 
             return MapearAResponse(orden);
@@ -76,7 +78,7 @@ namespace Orders.API.Services
         //despues verifica que el usuario exista en Users.API → ORD-003
         //despues verifica que cada producto exista en Products.API → ORD-004
         //despues verifica que haya stock suficiente para cada producto → ORD-005
-        //si todo esta bien crea la orden con los precios reales y la guarda en la lista
+        //si todo esta bien crea la orden con los precios reales y la guarda en la base de datos
         public async Task<OrderResponse> CrearOrden(CreateOrderRequest request)
         {
             //si el cliente mando una orden sin items, avisa que los datos son invalidos
@@ -139,8 +141,8 @@ namespace Orders.API.Services
                 FechaCreacion = DateTime.UtcNow
             };
 
-            //guarda la orden en la lista en memoria
-            _ordenes.Add(orden);
+            //le pide al Repository que guarde la orden en la base de datos SQLite
+            await _repository.Guardar(orden);
 
             //convierte la orden en OrderResponse y la devuelve al Controller
             return MapearAResponse(orden);
@@ -148,14 +150,14 @@ namespace Orders.API.Services
 
         //METODO 4: ActualizarEstado
         //el Controller le pide que cambie el estado de una orden
-        //primero busca la orden por id, si no existe lanza NotFoundException con ORD-001
+        //primero le pide al Repository la orden por id, si no existe lanza NotFoundException con ORD-001
         //despues verifica si el cambio de estado es valido segun TransicionesValidas
         //si no es valido lanza BusinessRuleException con ORD-006
-        //si es valido cambia el estado y devuelve la orden actualizada
-        public OrderResponse ActualizarEstado(Guid id, UpdateOrderStatusRequest request)
+        //si es valido le pide al Repository que actualice el estado en la base de datos
+        public async Task<OrderResponse> ActualizarEstado(Guid id, UpdateOrderStatusRequest request)
         {
-            //busca la orden, si no existe avisa con ORD-001
-            var orden = _ordenes.FirstOrDefault(o => o.Id == id)
+            //le pide al Repository la orden, si no existe avisa con ORD-001
+            var orden = await _repository.ObtenerPorId(id)
                 ?? throw new NotFoundException("ORD-001", "Orden no encontrada.");
 
             //verifica si el cambio de estado es valido
@@ -164,10 +166,11 @@ namespace Orders.API.Services
                 throw new BusinessRuleException("ORD-006",
                     $"Una orden en estado '{orden.Estado}' no puede cambiar a '{request.Estado}'.");
 
-            //si el cambio es valido, actualiza el estado
-            orden.Estado = request.Estado;
+            //si el cambio es valido, le pide al Repository que actualice el estado en la base de datos
+            await _repository.ActualizarEstado(id, request.Estado);
 
-            //convierte la orden actualizada en OrderResponse y la devuelve al Controller
+            //vuelve a buscar la orden actualizada para devolversela al Controller
+            orden.Estado = request.Estado;
             return MapearAResponse(orden);
         }
 

@@ -38,6 +38,7 @@ namespace Orders.API.Controllers
         //si viene un usuarioId en la URL por ej GET /api/orders?usuarioId=123, filtra por ese usuario
         //si no viene ningun usuarioId, devuelve todas las ordenes
         //devuelve 200 con la lista de ordenes
+        //el async/await significa que espera que el Service busque las ordenes en la base de datos
         /// <summary>Lista todas las ordenes. Se puede filtrar por usuario usando el parametro usuarioId</summary>
         /// <param name="usuarioId">ID del usuario para filtrar sus ordenes. Si no se envia, devuelve todas las ordenes</param>
         /// <response code="200">Lista de ordenes encontradas</response>
@@ -45,9 +46,9 @@ namespace Orders.API.Controllers
         [HttpGet]
         [ProducesResponseType(typeof(IEnumerable<OrderResponse>), 200)]
         [ProducesResponseType(500)]
-        public IActionResult GetAll([FromQuery] Guid? usuarioId)
+        public async Task<IActionResult> GetAll([FromQuery] Guid? usuarioId)
         {
-            var ordenes = _orderService.ObtenerTodas(usuarioId);
+            var ordenes = await _orderService.ObtenerTodas(usuarioId);
             return Ok(ordenes);
         }
 
@@ -56,6 +57,7 @@ namespace Orders.API.Controllers
         //le pide al OrderService esa orden especifica
         //si la orden existe devuelve 200 con la orden
         //si no existe el OrderService lanza NotFoundException y el handler devuelve 404
+        //el async/await significa que espera que el Service busque la orden en la base de datos
         /// <summary>Obtiene una orden especifica por su ID</summary>
         /// <param name="id">ID unico de la orden</param>
         /// <response code="200">Orden encontrada exitosamente</response>
@@ -65,9 +67,9 @@ namespace Orders.API.Controllers
         [ProducesResponseType(typeof(OrderResponse), 200)]
         [ProducesResponseType(404)]
         [ProducesResponseType(500)]
-        public IActionResult GetById(Guid id)
+        public async Task<IActionResult> GetById(Guid id)
         {
-            var orden = _orderService.ObtenerPorId(id);
+            var orden = await _orderService.ObtenerPorId(id);
             return Ok(orden);
         }
 
@@ -100,6 +102,7 @@ namespace Orders.API.Controllers
         //le pide al OrderService que cambie el estado de esa orden
         //si la transicion de estado es valida devuelve 200 con la orden actualizada
         //si no es valida el OrderService lanza BusinessRuleException y el handler devuelve 409
+        //el async/await significa que espera que el Service actualice el estado en la base de datos
         /// <summary>Actualiza el estado de una orden. Los estados validos son: Pendiente, Confirmada, Enviada, Entregada, Cancelada</summary>
         /// <param name="id">ID unico de la orden</param>
         /// <param name="request">Nuevo estado de la orden</param>
@@ -112,9 +115,9 @@ namespace Orders.API.Controllers
         [ProducesResponseType(404)]
         [ProducesResponseType(409)]
         [ProducesResponseType(500)]
-        public IActionResult UpdateStatus(Guid id, [FromBody] UpdateOrderStatusRequest request)
+        public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] UpdateOrderStatusRequest request)
         {
-            var orden = _orderService.ActualizarEstado(id, request);
+            var orden = await _orderService.ActualizarEstado(id, request);
             return Ok(orden);
         }
     }

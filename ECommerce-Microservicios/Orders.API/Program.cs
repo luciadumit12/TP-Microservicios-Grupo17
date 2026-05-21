@@ -1,4 +1,4 @@
-﻿//Cuando llega una llamada HTTP por ej 'crear order'. el sistema debe saber:
+﻿//Cuando llega una llamada HTTP por ej 'crear orden'. el sistema debe saber:
 //Quien la recibe → Controller: recibe la llamada HTTP
 //Quien la procesa → Service: decide que hacer con la llamada
 //Quien maneja los errores → ExceptionHandlers: categoriza los errores que se pueden presentar
@@ -9,6 +9,7 @@
 //de que llegue cualquier llamada.
 
 //nombres de las carpetas de las clases que se nombran en program
+using Orders.API.Data;
 using Orders.API.ExceptionHandlers;
 using Orders.API.Services;
 //Serilog es una libreria externa que guarda registros de todo lo que pasa en el sistema
@@ -64,6 +65,15 @@ builder.Services.AddSwaggerGen(options =>
 //GET /health/live → si la app esta viva. Solo verifica que el proceso esta corriendo.
 builder.Services.AddHealthChecks();
 
+//ACA USA LA CLASE DE LA CARPETA DATA
+//el DatabaseInitializer crea las tablas en la base de datos cuando arranca la app
+//si las tablas ya existen no hace nada
+builder.Services.AddSingleton<DatabaseInitializer>();
+
+//el OrderRepository maneja todas las operaciones con la base de datos SQLite
+//el AddScoped crea un OrderRepository nuevo por cada llamada HTTP
+builder.Services.AddScoped<OrderRepository>();
+
 //ACA USA LA CLASE DE LA CARPETA SERVICES
 //el AddScoped crea un OrderService por cada llamada HTTP
 //cada vez que el Controller recibe una llamada HTTP, esta linea le pasa automaticamente el OrderService
@@ -114,6 +124,11 @@ builder.Services.AddProblemDetails();
 //toma toda la configuracion que hizo el builder y construye la aplicacion
 //despues de aca no se puede configurar mas nada.
 var app = builder.Build();
+
+//inicializa la base de datos al arrancar la aplicacion
+//crea las tablas orders y order_items en el archivo orders.db si no existen
+//si las tablas ya existen no hace nada
+app.Services.GetRequiredService<DatabaseInitializer>().Initialize();
 
 //Cada vez que se lance un error, esta linea atrapa ese error y
 //busca en la lista de handlers quien puede manejarlo. Activa los handlers y devuelve el JSON.
