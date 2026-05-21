@@ -8,8 +8,11 @@ using Products.API.ExceptionHandlers;
 using Products.API.Services;
 using Serilog;
 using System.Reflection;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Data.Sqlite;
 
-// configura Serilog antes de que arranque la aplicacion
+// Configura Serilog antes de que arranque la aplicación
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .WriteTo.File("logs/products-.log", rollingInterval: RollingInterval.Day)
@@ -20,10 +23,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog();
 
 builder.Services.AddControllers();
-
 builder.Services.AddEndpointsApiExplorer();
 
-// configura Swagger para leer los XML comments y mostrar la documentacion de cada endpoint
+// Configura Swagger para leer los XML comments y mostrar la documentación de cada endpoint
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new()
@@ -37,21 +39,34 @@ builder.Services.AddSwaggerGen(c =>
     c.IncludeXmlComments(xmlPath);
 });
 
-builder.Services.AddHealthChecks();
+// CONFIGURACIÓN DE HEALTH CHECKS (Versión Nativa y Segura sin dependencias de terceros)
+builder.Services.AddHealthChecks()
+    // Chequeo para el estado "Live" (indica si la aplicación está viva en memoria)
+    .AddCheck("Self", () => HealthCheckResult.Healthy(), tags: new[] { "live" })
+    // Chequeo para el estado "Ready" (intenta abrir una conexión rápida a SQLite para validar que responda)
+    .AddCheck("Database", () =>
+    {
+        try
+        {
+            var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? "Data Source=products.db";
+            using var connection = new SqliteConnection(connectionString);
+            connection.Open();
+            return HealthCheckResult.Healthy("Base de datos SQLite conectada correctamente.");
+        }
+        catch (Exception ex)
+        {
+            return HealthCheckResult.Unhealthy("No se pudo establecer conexión con la base de datos SQLite.", ex);
+        }
+    }, tags: new[] { "ready" });
 
-// el DatabaseInitializer crea la tabla products en la base de datos cuando arranca la app
-// si la tabla ya existe no hace nada
+// Inyección de Dependencias
 builder.Services.AddSingleton<DatabaseInitializer>();
-
 // el ProductRepository maneja todas las operaciones con la base de datos SQLite
-// AddScoped crea un ProductRepository nuevo por cada llamada HTTP
-builder.Services.AddScoped<ProductRepository>();
-
+builder.Services.AddScoped<ProductRepository>();// AddScoped crea un ProductRepository nuevo por cada llamada HTTP
 // el ProductService contiene toda la logica de negocio
-// AddScoped crea un ProductService nuevo por cada llamada HTTP
-builder.Services.AddScoped<ProductService>();
+builder.Services.AddScoped<ProductService>();// AddScoped crea un ProductService nuevo por cada llamada HTTP
 
-// HttpClient para consultar a Orders.API y verificar si el producto tiene ordenes activas (PRD-004)
+// HttpClient para consultar a Orders.API y verificar si el producto tiene órdenes activas (PRD-004)
 builder.Services.AddHttpClient("OrdersAPI", client =>
 {
     client.BaseAddress = new Uri("https://localhost:7168/");
@@ -60,34 +75,29 @@ builder.Services.AddHttpClient("OrdersAPI", client =>
     ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
 });
 
+// Registro de los Exception Handlers
 // cuando algo no se encuentra: PRD-001 → devuelve 404
 builder.Services.AddExceptionHandler<NotFoundExceptionHandler>();
+
 // cuando los datos enviados son invalidos: PRD-002 → devuelve 400
 builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
+
 // cuando se viola una regla de negocio: PRD-003, PRD-004 → devuelve 409
 builder.Services.AddExceptionHandler<BusinessRuleExceptionHandler>();
+
 // cuando ocurre cualquier error inesperado: PRD-005 → devuelve 500
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+
 builder.Services.AddProblemDetails();
 
 var app = builder.Build();
 
-// inicializa la base de datos al arrancar la aplicacion
-// crea la tabla products en el archivo products.db si no existe
+// Inicializa la base de datos al arrancar la aplicación (crea la tabla si no existe)
 app.Services.GetRequiredService<DatabaseInitializer>().Initialize();
 
-app.UseExceptionHandler();
+// --- ORDEN DE MIDDLEWARES CORRECTO (Para evitar pérdida de trazabilidad en errores) ---
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
-app.UseHttpsRedirection();
-
-// CORRELATION ID
-// cada llamada HTTP recibe un id unico para poder rastrearla en los logs
+// 1. CORRELATION ID (Envuelve todo el ciclo de vida, permitiendo trazar incluso los errores críticos)
 app.Use(async (context, next) =>
 {
     var correlationId = context.Request.Headers["X-Correlation-Id"].FirstOrDefault()
@@ -99,12 +109,35 @@ app.Use(async (context, next) =>
     }
 });
 
+// 2. LOGGING DE PETICIONES DE SERILOG (Usa el CorrelationId inyectado arriba)
 app.UseSerilogRequestLogging();
 
+// 3. MANEJADOR GLOBAL DE ERRORES (Intercepta excepciones de los controladores y genera Problem Details)
+app.UseExceptionHandler();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.UseHttpsRedirection();
 app.MapControllers();
 
+// --- MAPEADO DE ENDPOINTS DE HEALTH CHECKS CON FILTROS ---
+// Endpoint genérico (ejecuta todos los chequeos cargados)
 app.MapHealthChecks("/health");
-app.MapHealthChecks("/health/ready");
-app.MapHealthChecks("/health/live");
+
+// Endpoint Live: Solo evalúa que la app esté corriendo en memoria (tag: live)
+app.MapHealthChecks("/health/live", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("live")
+});
+
+// Endpoint Ready: Evalúa que las dependencias duras como la BD respondan (tag: ready)
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready")
+});
 
 app.Run();

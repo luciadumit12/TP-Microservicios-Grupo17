@@ -92,6 +92,13 @@ namespace Products.API.Services
                 string.IsNullOrWhiteSpace(request.Categoria))
                 throw new ValidationException("PRD-002", "Los datos del producto son inválidos.");
 
+            // NUEVA VALIDACIÓN: Control de duplicados al editar → PRD-003
+            // Le pasamos 'id' en el tercer parámetro para excluir al producto actual de la búsqueda
+            var existeDuplicado = await _repository.ExistePorNombreYCategoria(request.Nombre, request.Categoria, id);
+            if (existeDuplicado)
+                throw new BusinessRuleException("PRD-003", $"Ya existe otro producto con el nombre '{request.Nombre}' en la categoría '{request.Categoria}'.");
+
+            // Si pasa las validaciones, recién ahí asignamos los cambios
             product.Nombre = request.Nombre;
             product.Descripcion = request.Descripcion;
             product.Precio = request.Precio;
