@@ -10,6 +10,7 @@ namespace Cart.API.Services
     {
         private readonly CartRepository _repository;
         private readonly HttpClient _productsClient;
+        private readonly HttpClient _usersClient;
 
         public CartService(
             CartRepository repository,
@@ -17,11 +18,35 @@ namespace Cart.API.Services
         {
             _repository = repository;
             _productsClient = httpClientFactory.CreateClient("ProductsAPI");
+            _usersClient = httpClientFactory.CreateClient("UsersAPI");
+        }
+
+        //metodo privado para validar que el usuario existe en Users.API, reutilizado en todos los endpoints
+        private async Task ValidarUsuarioExisteAsync(Guid userId)
+        {
+            if (userId == Guid.Empty)
+                throw new ValidationException("CRT-004", "El ID del usuario no puede estar vacío."); //Si está vacío: Lanza inmediatamente una ValidationException(CRT-004).
+
+            // Llamada real a Users.API para verificar existencia
+            var userResponse = await _usersClient.GetAsync($"api/users/{userId}");
+
+            if (userResponse.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                // Si Users.API devuelve 404, significa que el GUID no corresponde a ningún usuario registrado
+                throw new NotFoundException("CRT-006", "El usuario especificado no existe.");
+            }
+
+            if (!userResponse.IsSuccessStatusCode)
+            {
+                throw new Exception("Error interno al validar el usuario en Users.API.");
+            }
         }
 
         // GET carrito
         public async Task<CartResponse> GetByUserIdAsync(Guid userId)
         {
+            await ValidarUsuarioExisteAsync(userId); // Valida Empty y existencia en Users.API
+
             var cart = await _repository.ObtenerPorUsuarioId(userId)
                 ?? throw new NotFoundException("CRT-001", "Carrito no encontrado.");
 
@@ -31,6 +56,8 @@ namespace Cart.API.Services
         // ADD item
         public async Task<CartResponse> AddItemAsync(Guid userId, AddCartItemRequest request)
         {
+            await ValidarUsuarioExisteAsync(userId);// Valida Empty y existencia en Users.API
+
             if (request.Cantidad <= 0)
                 throw new ValidationException("CRT-004", "Cantidad inválida.");
 
@@ -41,25 +68,33 @@ namespace Cart.API.Services
             var product = await productResponse.Content.ReadFromJsonAsync<ProductDto>()
                 ?? throw new NotFoundException("CRT-002", "Producto no encontrado.");
 
-            if (product.Stock < request.Cantidad)
-                throw new BusinessRuleException(
-                    "CRT-003",
-                    $"Stock insuficiente. Disponible: {product.Stock}, solicitado: {request.Cantidad}"
-                );
-
             var cart = await _repository.ObtenerPorUsuarioId(userId)
                 ?? new Cart.API.Models.Cart { UsuarioId = userId };
 
             var item = cart.Items.FirstOrDefault(i => i.ProductoId == request.ProductoId);
 
+            // OPTIMIZACIÓN: Validamos el stock total real (la cantidad solicitada + lo que ya tenía en el carrito)
+            int cantidadTotal = request.Cantidad + (item?.Cantidad ?? 0);
+            if (product.Stock < cantidadTotal)
+            {
+                throw new BusinessRuleException(
+                    "CRT-003",
+                    $"Stock insuficiente. Disponible: {product.Stock}, solicitado total en carrito: {cantidadTotal}"
+                );
+            }
+
             if (item == null)
+            {
                 cart.Items.Add(new CartItem
                 {
                     ProductoId = request.ProductoId,
                     Cantidad = request.Cantidad
                 });
+            }
             else
+            {
                 item.Cantidad += request.Cantidad;
+            }
 
             cart.FechaActualizacion = DateTime.UtcNow;
 
@@ -71,6 +106,8 @@ namespace Cart.API.Services
         // UPDATE item
         public async Task<CartResponse> UpdateItemAsync(Guid userId, Guid productId, UpdateCartItemRequest request)
         {
+            await ValidarUsuarioExisteAsync(userId); // Valida Empty y existencia en Users.API
+
             if (request.Cantidad <= 0)
                 throw new ValidationException("CRT-004", "Cantidad inválida.");
 
@@ -104,6 +141,8 @@ namespace Cart.API.Services
         // DELETE item
         public async Task DeleteItemAsync(Guid userId, Guid productId)
         {
+            await ValidarUsuarioExisteAsync(userId); // Valida Empty y existencia en Users.API
+
             var cart = await _repository.ObtenerPorUsuarioId(userId)
                 ?? throw new NotFoundException("CRT-001", "Carrito no encontrado.");
 
@@ -119,6 +158,8 @@ namespace Cart.API.Services
         // CLEAR cart
         public async Task ClearCartAsync(Guid userId)
         {
+            await ValidarUsuarioExisteAsync(userId); // Valida Empty y existencia en Users.API
+
             var cart = await _repository.ObtenerPorUsuarioId(userId)
                 ?? throw new NotFoundException("CRT-001", "Carrito no encontrado.");
 
