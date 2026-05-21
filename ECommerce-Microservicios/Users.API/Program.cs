@@ -15,10 +15,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Host.UseSerilog();
 
-// AddScoped = se crea una instancia nueva por cada request HTTP
-builder.Services.AddScoped<UserService>();
+// Singleton temporal — comparte la misma lista en memoria entre todas las requests
+// Cuando se implemente SQLite hay que volver a AddScoped
+builder.Services.AddSingleton<UserService>();
 
-// Los específicos van primero, GlobalExceptionHandler va último como red de seguridad
 builder.Services.AddExceptionHandler<NotFoundExceptionHandler>();
 builder.Services.AddExceptionHandler<UnauthorizedExceptionHandler>();
 builder.Services.AddExceptionHandler<ForbiddenExceptionHandler>();
@@ -29,7 +29,6 @@ builder.Services.AddProblemDetails();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
-// Swagger con XML comments — lee los comentarios /// de los controllers
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new() { Title = "Users.API", Version = "v1" });
@@ -53,7 +52,6 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// Correlation ID — genera un ID único por request y lo propaga en logs y respuestas
 app.Use(async (context, next) =>
 {
     var correlationId = context.Request.Headers["X-Correlation-Id"].FirstOrDefault()
@@ -68,9 +66,6 @@ app.Use(async (context, next) =>
 app.UseSerilogRequestLogging();
 app.MapControllers();
 
-// /health → estado general
-// /health/ready → ¿está listo para recibir requests?
-// /health/live → ¿está vivo el proceso?
 app.MapHealthChecks("/health");
 app.MapHealthChecks("/health/ready");
 app.MapHealthChecks("/health/live");
