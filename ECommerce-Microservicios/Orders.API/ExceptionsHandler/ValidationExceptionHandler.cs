@@ -27,6 +27,7 @@ namespace Notifications.API.ExceptionHandlers
                 errorMessage = ex.Message
             }, cancellationToken);
 
+            //devuelve true para avisarle al sistema que este handler manejo el error.
             return true;
         }
     }
