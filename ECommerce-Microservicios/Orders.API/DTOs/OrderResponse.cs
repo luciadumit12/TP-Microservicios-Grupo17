@@ -1,4 +1,4 @@
-﻿//ORDERRESPONSE.CS
+﻿//.ORDERRESPONSE.CS
 //lo que la API devuelve en cualquier endpoint exitoso (GET, POST, PUT)
 //incluye todo: id, items con precios, total, estado y fecha
 //es lo que ve el cliente cuando hace una llamada exitosa

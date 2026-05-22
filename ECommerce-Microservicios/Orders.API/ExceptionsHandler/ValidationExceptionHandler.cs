@@ -1,4 +1,4 @@
-﻿//VALIDATIONEXCEPTIONHANDLER.CS
+﻿//.VALIDATIONEXCEPTIONHANDLER.CS
 //atrapa la ValidationException que lanza el OrderService
 //se activa en este caso segun el catalogo del TP:
 //ORD-002 → cuando se intenta crear una orden sin items o con datos faltantes

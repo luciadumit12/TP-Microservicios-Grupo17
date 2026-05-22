@@ -1,4 +1,4 @@
-﻿//Cuando llega una llamada HTTP por ej 'crear orden'. el sistema debe saber:
+﻿//.Cuando llega una llamada HTTP por ej 'crear orden'. el sistema debe saber:
 //Quien la recibe → Controller: recibe la llamada HTTP
 //Quien la procesa → Service: decide que hacer con la llamada
 //Quien maneja los errores → ExceptionHandlers: categoriza los errores que se pueden presentar

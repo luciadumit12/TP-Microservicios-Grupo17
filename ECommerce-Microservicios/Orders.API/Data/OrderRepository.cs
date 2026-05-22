@@ -1,4 +1,4 @@
-﻿//OrderRepository es el encargado de todas las operaciones con la base de datos
+﻿//.OrderRepository es el encargado de todas las operaciones con la base de datos
 //el OrderService le pide que guarde, busque o actualice ordenes
 //y el Repository se encarga de hablar con SQLite
 using Dapper;

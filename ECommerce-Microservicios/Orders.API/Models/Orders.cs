@@ -1,4 +1,4 @@
-﻿//Los Models es la representacion de como existen los datos dentro del sistema
+﻿//.Los Models es la representacion de como existen los datos dentro del sistema
 //Son las entidades reales que se guardan en la base de datos
 //Son distintos a los DTOs porque los DTOs son lo que ve el cliente
 //y los Models son lo que guarda el sistema internamente

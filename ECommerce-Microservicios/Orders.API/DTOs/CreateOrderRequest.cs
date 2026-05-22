@@ -1,4 +1,4 @@
-﻿//DTO: FORMA DE COMUNICARSE CON ORDERS.API, los datos que contienen las llamadas HTTP
+﻿//.DTO: FORMA DE COMUNICARSE CON ORDERS.API, los datos que contienen las llamadas HTTP
 //Los DTOs son los objetos que viajan entre el cliente y el Controller
 //Lo que el cliente manda no es lo mismo que lo que el sistema guarda internamente
 

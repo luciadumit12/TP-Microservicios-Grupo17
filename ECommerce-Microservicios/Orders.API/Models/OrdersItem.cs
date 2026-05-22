@@ -1,4 +1,4 @@
-﻿//ORDERITEM.CS
+﻿//.ORDERITEM.CS
 //representa un producto dentro de una orden
 //una orden puede tener muchos OrderItems
 namespace Orders.API.Models
