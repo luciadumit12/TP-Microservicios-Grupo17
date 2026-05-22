@@ -3,6 +3,7 @@
 // Serilog (logs), Services, ExceptionHandlers, Swagger, Health Checks y Correlation ID
 
 using Serilog;
+using Users.API.Data;
 using Users.API.ExceptionHandlers;
 using Users.API.Services;
 
@@ -15,9 +16,19 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Host.UseSerilog();
 
-// Singleton temporal — comparte la misma lista en memoria entre todas las requests
-// Cuando se implemente SQLite hay que volver a AddScoped
-builder.Services.AddSingleton<UserService>();
+// ─────────────────────────────
+// CADENA DE CONEXIÓN A SQLITE
+// Lee la cadena de conexión del appsettings.json
+// ─────────────────────────────
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? "Data Source=users.db";
+
+// ─────────────────────────────
+// REGISTRAR SERVICIOS
+// ─────────────────────────────
+builder.Services.AddSingleton(new DatabaseInitializer(connectionString));
+builder.Services.AddSingleton(new UserRepository(connectionString));
+builder.Services.AddScoped<UserService>();
 
 builder.Services.AddExceptionHandler<NotFoundExceptionHandler>();
 builder.Services.AddExceptionHandler<UnauthorizedExceptionHandler>();
@@ -42,6 +53,15 @@ builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
+// ─────────────────────────────
+// INICIALIZAR LA BASE DE DATOS
+// Crea la tabla users si no existe antes de recibir requests
+// ─────────────────────────────
+using (var scope = app.Services.CreateScope())
+{
+    scope.ServiceProvider.GetRequiredService<DatabaseInitializer>().Initialize();
+}
+
 app.UseExceptionHandler();
 
 if (app.Environment.IsDevelopment())
@@ -52,6 +72,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+// Correlation ID
 app.Use(async (context, next) =>
 {
     var correlationId = context.Request.Headers["X-Correlation-Id"].FirstOrDefault()
