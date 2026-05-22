@@ -1,6 +1,6 @@
 ﻿// Captura las NotFoundException y arma la respuesta HTTP 404
 // con el formato de error que pide el TP (errorCode, errorMessage, etc.)
-// Maneja dos casos de Notifications.API
+// Maneja dos casos de Notifications.API:
 // NTF-001 → cuando el usuario no existe en Users.API
 // NTF-003 → cuando el usuario no tiene notificaciones registradas
 

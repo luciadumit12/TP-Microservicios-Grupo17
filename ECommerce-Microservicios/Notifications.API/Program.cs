@@ -92,7 +92,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// ────────────────────────────
+// ─────────────────────────────
 // CORRELATION ID
 // Genera un ID único por request y lo propaga en logs y respuestas
 // Si el cliente ya manda un X-Correlation-Id lo reutiliza, si no genera uno nuevo

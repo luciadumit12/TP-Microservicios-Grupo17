@@ -1,6 +1,6 @@
 ﻿//NotificationRepository es el encargado de todas las operaciones con la base de datos
 //el NotificationService le pide que guarde o busque notificaciones
-//y el Repository se encarga de hablar con SQLite.
+//y el Repository se encarga de hablar con SQLite
 using Dapper;
 using Microsoft.Data.Sqlite;
 using Notifications.API.Models;

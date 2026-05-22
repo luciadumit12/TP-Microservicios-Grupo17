@@ -1,6 +1,6 @@
 ﻿// Captura las BusinessRuleException y arma la respuesta HTTP 400
 // con el formato de error que pide el TP (errorCode, errorMessage, etc.)
-// En Notifications.API maneja
+// En Notifications.API maneja:
 // NTF-002 → cuando los datos de la notificación son inválidos (mensaje vacío o tipo incorrecto)
 
 using Microsoft.AspNetCore.Diagnostics;

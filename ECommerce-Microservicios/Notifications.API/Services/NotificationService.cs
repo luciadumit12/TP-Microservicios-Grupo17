@@ -1,7 +1,7 @@
 ﻿// El Service contiene toda la lógica de negocio de Notifications.API.
 // El Controller no piensa — solo recibe el request y llama al Service.
 // A diferencia de Users.API, este Service se conecta con Users.API
-// para verificar si el usuario existe antes de crear la notificación
+// para verificar si el usuario existe antes de crear la notificación.
 // Ahora usa SQLite como base de datos a través del NotificationRepository
 
 using Notifications.API.Data;

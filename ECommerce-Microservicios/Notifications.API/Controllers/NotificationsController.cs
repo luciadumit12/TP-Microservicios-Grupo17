@@ -1,4 +1,4 @@
-﻿// El Controller es la puerta de entrada de Notifications.API
+﻿// El Controller es la puerta de entrada de Notifications.API.
 // Recibe los requests HTTP, llama al Service y devuelve la respuesta.
 // NO tiene lógica de negocio — solo delega al Service.
 using Microsoft.AspNetCore.Mvc;

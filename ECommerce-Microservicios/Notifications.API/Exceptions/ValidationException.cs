@@ -5,7 +5,7 @@ namespace Notifications.API.Exceptions
 {
     public class ValidationException(string errorCode, string message) : Exception(message)
     {
-        //guarda el codigo del error para que el Handler lo pueda usar en respuesta JSON
+        //guarda el codigo del error para que el Handler lo pueda usar en la respuesta JSON
         public string ErrorCode { get; } = errorCode;
     }
 }
