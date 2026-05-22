@@ -1,4 +1,4 @@
-﻿//NOTFOUNDEXCEPTION.CS
+﻿//.NOTFOUNDEXCEPTION.CS
 //se lanza cuando algo no se encuentra
 //por ej cuando se busca una orden por id y no existe
 //el NotFoundExceptionHandler la atrapa y devuelve 404 con el codigo ORD-001

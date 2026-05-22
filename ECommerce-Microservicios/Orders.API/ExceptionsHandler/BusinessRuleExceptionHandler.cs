@@ -1,4 +1,4 @@
-﻿//BUSINESSRULEEXCEPTIONHANDLER.CS
+﻿//.BUSINESSRULEEXCEPTIONHANDLER.CS
 //atrapa la BusinessRuleException que lanza el OrderService
 //se activa en 2 casos segun el catalogo del TP:
 //ORD-005 → cuando la cantidad solicitada supera el stock disponible → devuelve 422

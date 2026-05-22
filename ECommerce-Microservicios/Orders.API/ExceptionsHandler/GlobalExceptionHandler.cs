@@ -1,4 +1,4 @@
-﻿//GLOBALEXCEPTIONHANDLER.CS
+﻿//.GLOBALEXCEPTIONHANDLER.CS
 //atrapa cualquier error inesperado que los otros tres handlers no pudieron manejar
 //se activa para ORD-007 → error inesperado en el servicio o la persistencia
 //siempre devuelve 500 porque si llego hasta aca es un error que el sistema no esperaba

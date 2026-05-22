@@ -1,4 +1,4 @@
-﻿//VALIDATIONEXCEPTION.CS
+﻿//.VALIDATIONEXCEPTION.CS
 //se lanza cuando los datos que mando el cliente estan mal
 //por ej cuando se crea una orden sin items
 //el handler la atrapa y devuelve 400 con el codigo ORD-002

@@ -1,4 +1,4 @@
-﻿//atrapa la ValidationException que lanza el NotificationService
+//atrapa la ValidationException que lanza el NotificationService
 //se activa para NTF-002 → cuando los datos de la notificacion son invalidos
 //por ej cuando el mensaje esta vacio o el tipo no es Email, Push o SMS
 //devuelve 400
@@ -12,11 +12,8 @@ namespace Notifications.API.ExceptionHandlers
         public async ValueTask<bool> TryHandleAsync(
             HttpContext context, Exception exception, CancellationToken cancellationToken)
         {
-            //verifica si el error que llego es una ValidationException
-            //si no lo es, devuelve false y el sistema prueba con el siguiente handler
             if (exception is not ValidationException ex) return false;
 
-            //si es una ValidationException, arma la respuesta 400 con el formato del TP
             context.Response.StatusCode = 400;
             await context.Response.WriteAsJsonAsync(new
             {
@@ -30,7 +27,6 @@ namespace Notifications.API.ExceptionHandlers
                 errorMessage = ex.Message
             }, cancellationToken);
 
-            //devuelve true para avisarle al sistema que este handler manejo el error
             return true;
         }
     }

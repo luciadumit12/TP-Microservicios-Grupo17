@@ -1,4 +1,4 @@
-﻿//DatabaseInitializer es el encargado de crear las tablas en la base de datos cuando arranca la app
+﻿//.DatabaseInitializer es el encargado de crear las tablas en la base de datos cuando arranca la app
 //si las tablas ya existen no hace nada, solo las crea si no existen
 //se ejecuta una sola vez al arrancar la aplicacion desde Program.cs
 using Microsoft.Data.Sqlite;

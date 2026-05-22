@@ -1,4 +1,4 @@
-﻿//ORDERITEMREQUEST.CS
+﻿//.ORDERITEMREQUEST.CS
 //El item dentro del CreateOrderRequest
 //solo el id del producto y cuantos quiere
 //no incluye PrecioUnitario porque el precio lo busca el sistema en Products.API
