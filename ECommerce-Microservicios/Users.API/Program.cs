@@ -15,8 +15,9 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Host.UseSerilog();
 
-// AddScoped = se crea una instancia nueva por cada request HTTP
-builder.Services.AddScoped<UserService>();
+// Singleton temporal — comparte la misma lista en memoria entre todas las requests
+// Cuando se implemente SQLite hay que volver a AddScoped
+builder.Services.AddSingleton<UserService>();
 
 // Los específicos van primero, GlobalExceptionHandler va último como red de seguridad
 builder.Services.AddExceptionHandler<NotFoundExceptionHandler>();
@@ -68,9 +69,6 @@ app.Use(async (context, next) =>
 app.UseSerilogRequestLogging();
 app.MapControllers();
 
-// /health → estado general
-// /health/ready → ¿está listo para recibir requests?
-// /health/live → ¿está vivo el proceso?
 app.MapHealthChecks("/health");
 app.MapHealthChecks("/health/ready");
 app.MapHealthChecks("/health/live");

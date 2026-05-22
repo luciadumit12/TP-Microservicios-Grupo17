@@ -33,17 +33,16 @@ namespace Users.API.Services
             if (_users.Any(u => u.Email == request.Email))
                 throw new BusinessRuleException("USR-001", $"El email '{request.Email}' ya está registrado.");
 
-            // Crear el nuevo usuario
             var user = new User
             {
-                Id = Guid.NewGuid(),             // Id generado automáticamente
+                Id = Guid.NewGuid(),                  // Id generado automáticamente
                 Nombre = request.Nombre,
                 Apellido = request.Apellido,
                 Email = request.Email,
-                PasswordHash = request.Password, // Por ahora se guarda sin hashear
-                FechaRegistro = DateTime.UtcNow, // Fecha actual automática
-                Activo = true,                   // El usuario arranca activo
-                IntentosFallidos = 0             // Sin intentos fallidos
+                PasswordHash = request.Password,      // Por ahora se guarda sin hashear
+                FechaRegistro = DateTime.UtcNow,      // Fecha actual automática
+                Activo = true,                        // El usuario arranca activo
+                IntentosFallidos = 0                  // Sin intentos fallidos
             };
 
             _users.Add(user);
@@ -64,7 +63,6 @@ namespace Users.API.Services
                 string.IsNullOrWhiteSpace(request.Password))
                 throw new ValidationException("USR-002", "Los datos del usuario son inválidos.");
 
-            // Buscar el usuario por email
             var user = _users.FirstOrDefault(u => u.Email == request.Email);
 
             // USR-003: si el email no existe en el sistema → 401 Unauthorized
@@ -79,20 +77,16 @@ namespace Users.API.Services
             if (!user.Activo && user.IntentosFallidos < 3)
                 throw new ForbiddenException("USR-005", "Su cuenta fue suspendida por razones de seguridad. Contacte a soporte.");
 
-            // Verificar que la contraseña sea correcta
             if (user.PasswordHash != request.Password)
             {
-                // Incrementar el contador de intentos fallidos
                 user.IntentosFallidos++;
 
-                // Si llegó a 3 intentos fallidos → bloquear el usuario
                 if (user.IntentosFallidos >= 3)
                 {
                     user.Activo = false;
                     throw new ForbiddenException("USR-004", "Su cuenta fue bloqueada por superar el máximo de intentos fallidos. Contacte a soporte.");
                 }
 
-                // Todavía no llegó a 3 → credenciales incorrectas
                 throw new UnauthorizedException("USR-003", "Credenciales incorrectas.");
             }
 
