@@ -22,27 +22,40 @@ namespace Cart.API.Data
         {
             using var conn = CreateConnection();
 
-            var cart = await conn.QueryFirstOrDefaultAsync<Cart.API.Models.Cart>(
+            // 1. Buscamos el carrito como tipo dinámico (Dapper devuelve texto crudo)
+            var cartRow = await conn.QueryFirstOrDefaultAsync(
                 """
-                SELECT *
+                SELECT usuarioId, fechaActualizacion
                 FROM carts
                 WHERE usuarioId = @UsuarioId
                 """,
                 new { UsuarioId = userId.ToString() });
 
-            if (cart == null)
+            if (cartRow == null)
                 return null;
 
-            var items = await conn.QueryAsync<CartItem>(
+            // 2. Lo convertimos (mapeamos) manualmente a nuestro modelo C#
+            var cart = new Cart.API.Models.Cart
+            {
+                UsuarioId = Guid.Parse((string)cartRow.usuarioId),
+                FechaActualizacion = DateTime.Parse((string)cartRow.fechaActualizacion)
+            };
+
+            // 3. Hacemos lo mismo con los ítems del carrito
+            var itemsRows = await conn.QueryAsync(
                 """
-                SELECT productoId AS ProductoId,
-                       cantidad AS Cantidad
+                SELECT productoId, cantidad
                 FROM cart_items
                 WHERE usuarioId = @UsuarioId
                 """,
                 new { UsuarioId = userId.ToString() });
 
-            cart.Items = items.ToList();
+            // Mapeamos cada fila de la tabla a un objeto CartItem
+            cart.Items = itemsRows.Select(row => new CartItem
+            {
+                ProductoId = Guid.Parse((string)row.productoId),
+                Cantidad = Convert.ToInt32(row.cantidad) 
+            }).ToList();
 
             return cart;
         }
