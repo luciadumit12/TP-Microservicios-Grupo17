@@ -40,9 +40,9 @@ namespace Users.API.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status409Conflict)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public IActionResult Register([FromBody] RegisterUserRequest request)
+        public async Task<IActionResult> Register([FromBody] RegisterUserRequest request)
         {
-            var response = _userService.Register(request);
+            var response = await _userService.Register(request);
             return CreatedAtAction(nameof(Register), new { id = response.Id }, response);
         }
 
@@ -65,9 +65,9 @@ namespace Users.API.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public IActionResult Login([FromBody] LoginUserRequest request)
+        public async Task<IActionResult> Login([FromBody] LoginUserRequest request)
         {
-            var response = _userService.Login(request);
+            var response = await _userService.Login(request);
             return Ok(response);
         }
 
@@ -78,9 +78,9 @@ namespace Users.API.Controllers
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public IActionResult GetById(Guid id)
+        public async Task<IActionResult> GetById(Guid id)
         {
-            var response = _userService.GetById(id);
+            var response = await _userService.GetById(id);
             return Ok(response);
         }
     }
