@@ -1,6 +1,6 @@
 ﻿//atrapa la ValidationException que lanza el NotificationService
 //se activa para NTF-002 → cuando los datos de la notificacion son invalidos
-//por ej cuando el mensaje esta vacio o el tipo no es Email, Push o SMS
+//por ej cuando el mensaje esta vacio o el tipo no es Email,Push o SMS
 //devuelve 400
 using Microsoft.AspNetCore.Diagnostics;
 using Notifications.API.Exceptions;

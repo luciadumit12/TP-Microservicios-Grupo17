@@ -1,6 +1,6 @@
 ﻿// DTO que representa los datos que manda el cliente cuando quiere enviar una notificación.
 // Es lo que llega en el BODY del POST /api/notifications/send
-// No incluye Id, Estado ni FechaEnvio porque esos los genera el sistema.
+// No incluye Id, Estado ni FechaEnvio porque esos los genera el sistema
 
 namespace Notifications.API.DTOs
 {

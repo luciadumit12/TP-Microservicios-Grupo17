@@ -1,6 +1,6 @@
 ﻿// DTO que representa lo que devuelve la API cuando responde con datos de una notificación.
 // Es lo que sale en el BODY de las respuestas exitosas.
-// Incluye todos los campos porque el cliente necesita ver el estado y la fecha de envío.
+// Incluye todos los campos porque el cliente necesita ver el estado y la fecha de envío
 
 namespace Notifications.API.DTOs
 {
