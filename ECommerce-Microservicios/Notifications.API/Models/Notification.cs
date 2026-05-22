@@ -1,6 +1,6 @@
 ﻿// Esta clase representa una Notificación dentro del sistema.
 // Es la entidad del dominio — cómo se guarda una notificación internamente.
-// NUNCA se expone directamente en las respuestas de la API, para eso están los DTOs.
+// NUNCA se expone directamente en las respuestas de la API, para eso están los DTOs
 
 namespace Notifications.API.Models
 {
