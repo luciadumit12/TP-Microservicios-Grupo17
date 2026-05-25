@@ -1,12 +1,18 @@
 ﻿//El Controller es la puerta de entrada de Orders.API
 //Cuando llega una llamada HTTP, el Controller la recibe y se la pasa al OrderService
 //El Controller no decide nada, solo recibe y delega
+//nombres de las carpetas de las clases que se nombran en este archivo
 using Microsoft.AspNetCore.Mvc;
 using Orders.API.DTOs;
 using Orders.API.Services;
 
 namespace Orders.API.Controllers
 {
+    //esta clase es el Controller de Orders.API
+    //ACA SE DEFINEN LOS 4 ENDPOINTS DE LA API
+    //[ApiController] le dice a .NET que esta clase recibe llamadas HTTP
+    //[Route("api/orders")] define la URL base de todos los endpoints de esta clase
+
     /// <summary>
     /// Maneja todas las operaciones relacionadas con ordenes de compra
     /// </summary>
@@ -19,6 +25,7 @@ namespace Orders.API.Controllers
 
         //recibe el OrderService que .NET entrega automaticamente
         //gracias a que lo registramos en Program.cs con AddScoped<OrderService>()
+        //y lo guarda en la variable para que los metodos puedan usarlo
         public OrdersController(OrderService orderService)
         {
             _orderService = orderService;
@@ -28,8 +35,10 @@ namespace Orders.API.Controllers
 
         //ENDPOINT 1: GET /api/orders
         //recibe una llamada GET y le pide al OrderService todas las ordenes
-        //si viene un usuarioId en la URL filtra por ese usuario
+        //si viene un usuarioId en la URL por ej GET /api/orders?usuarioId=123, filtra por ese usuario
+        //si no viene ningun usuarioId, devuelve todas las ordenes
         //devuelve 200 con la lista de ordenes
+        //el async/await significa que espera que el Service busque las ordenes en la base de datos
         /// <summary>Lista todas las ordenes. Se puede filtrar por usuario usando el parametro usuarioId</summary>
         /// <param name="usuarioId">ID del usuario para filtrar sus ordenes. Si no se envia, devuelve todas las ordenes</param>
         /// <remarks>
@@ -73,8 +82,11 @@ namespace Orders.API.Controllers
         }
 
         //ENDPOINT 2: GET /api/orders/{id}
-        //recibe una llamada GET con un id especifico en la URL
-        //devuelve 200 con la orden o 404 si no existe
+        //recibe una llamada GET con un id especifico en la URL por ej GET /api/orders/3fa85f64
+        //le pide al OrderService esa orden especifica
+        //si la orden existe devuelve 200 con la orden
+        //si no existe el OrderService lanza NotFoundException y el handler devuelve 404
+        //el async/await significa que espera que el Service busque la orden en la base de datos
         /// <summary>Obtiene una orden especifica por su ID</summary>
         /// <param name="id">ID unico de la orden</param>
         /// <remarks>
@@ -103,6 +115,14 @@ namespace Orders.API.Controllers
         ///       "status": 404
         ///     }
         ///
+        /// Ejemplo de Error (500 - Error interno - ORD-007):
+        ///
+        ///     {
+        ///       "errorCode": "ORD-007",
+        ///       "errorMessage": "Error interno al procesar la orden.",
+        ///       "status": 500
+        ///     }
+        ///
         /// </remarks>
         /// <response code="200">Orden encontrada exitosamente</response>
         /// <response code="404">Orden no encontrada (ORD-001)</response>
@@ -119,7 +139,8 @@ namespace Orders.API.Controllers
 
         //ENDPOINT 3: POST /api/orders
         //recibe una llamada POST con los datos de la orden en el body
-        //valida usuario, productos y stock antes de crear la orden
+        //le pide al OrderService que valide el usuario, los productos y el stock antes de crear la orden
+        //el async/await significa que espera las respuestas de Users.API y Products.API antes de continuar
         //devuelve 201 con la orden creada
         /// <summary>Crea una nueva orden de compra. Valida que el usuario exista, que los productos existan y que haya stock suficiente</summary>
         /// <param name="request">Datos de la orden: usuarioId y lista de items con productoId y cantidad</param>
@@ -173,6 +194,14 @@ namespace Orders.API.Controllers
         ///       "status": 422
         ///     }
         ///
+        /// Ejemplo de Error (500 - Error interno - ORD-007):
+        ///
+        ///     {
+        ///       "errorCode": "ORD-007",
+        ///       "errorMessage": "Error interno al procesar la orden.",
+        ///       "status": 500
+        ///     }
+        ///
         /// </remarks>
         /// <response code="201">Orden creada exitosamente</response>
         /// <response code="400">Datos invalidos, por ej lista de items vacia (ORD-002)</response>
@@ -192,8 +221,11 @@ namespace Orders.API.Controllers
         }
 
         //ENDPOINT 4: PUT /api/orders/{id}/status
-        //recibe una llamada PUT con el id de la orden y el nuevo estado en el body
-        //devuelve 200 con la orden actualizada o 409 si la transicion no es valida
+        //recibe una llamada PUT con el id de la orden en la URL y el nuevo estado en el body
+        //le pide al OrderService que cambie el estado de esa orden
+        //si la transicion de estado es valida devuelve 200 con la orden actualizada
+        //si no es valida el OrderService lanza BusinessRuleException y el handler devuelve 409
+        //el async/await significa que espera que el Service actualice el estado en la base de datos
         /// <summary>Actualiza el estado de una orden. Los estados validos son: Pendiente, Confirmada, Enviada, Entregada, Cancelada</summary>
         /// <param name="id">ID unico de la orden</param>
         /// <param name="request">Nuevo estado de la orden</param>
@@ -229,6 +261,14 @@ namespace Orders.API.Controllers
         ///       "errorCode": "ORD-006",
         ///       "errorMessage": "Una orden en estado 'Entregada' no puede cambiar a 'Pendiente'.",
         ///       "status": 409
+        ///     }
+        ///
+        /// Ejemplo de Error (500 - Error interno - ORD-007):
+        ///
+        ///     {
+        ///       "errorCode": "ORD-007",
+        ///       "errorMessage": "Error interno al procesar la orden.",
+        ///       "status": 500
         ///     }
         ///
         /// </remarks>
