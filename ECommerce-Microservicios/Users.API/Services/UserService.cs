@@ -2,6 +2,7 @@
 // El Controller no piensa — solo recibe el request y llama al Service.
 // El Service es quien valida, procesa y devuelve el resultado.
 // Ahora usa UserRepository para persistir los datos en SQLite.
+// Al registrar un usuario, llama automáticamente a Notifications.API para enviar bienvenida.
 
 using Users.API.Data;
 using Users.API.DTOs;
@@ -12,12 +13,15 @@ namespace Users.API.Services
 {
     public class UserService
     {
-        // Repositorio que maneja las operaciones con la base de datos SQLite
         private readonly UserRepository _repository;
 
-        public UserService(UserRepository repository)
+        // HttpClientFactory para llamar a Notifications.API automáticamente
+        private readonly IHttpClientFactory _httpClientFactory;
+
+        public UserService(UserRepository repository, IHttpClientFactory httpClientFactory)
         {
             _repository = repository;
+            _httpClientFactory = httpClientFactory;
         }
 
         // ─────────────────────────────
@@ -51,6 +55,28 @@ namespace Users.API.Services
             };
 
             await _repository.InsertAsync(user);
+
+            // ─────────────────────────────
+            // NOTIFICACIÓN AUTOMÁTICA DE BIENVENIDA
+            // Llama a Notifications.API para enviar una notificación al usuario recién registrado
+            // Si Notifications.API no está disponible, no falla el registro — es un best-effort
+            // ─────────────────────────────
+            try
+            {
+                var client = _httpClientFactory.CreateClient("NotificationsAPI");
+                await client.PostAsJsonAsync("api/notifications/send", new
+                {
+                    usuarioId = user.Id,
+                    mensaje = $"Bienvenido/a {user.Nombre}! Tu cuenta fue creada exitosamente.",
+                    tipo = "Email"
+                });
+            }
+            catch
+            {
+                // Si Notifications.API no está disponible, el registro igual es exitoso
+                // No propagamos el error para no bloquear el registro del usuario
+            }
+
             return ToResponse(user);
         }
 

@@ -28,6 +28,16 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 // ─────────────────────────────
 builder.Services.AddSingleton(new DatabaseInitializer(connectionString));
 builder.Services.AddSingleton(new UserRepository(connectionString));
+
+// HttpClient para llamar a Notifications.API automáticamente al registrar un usuario
+builder.Services.AddHttpClient("NotificationsAPI", client =>
+{
+    client.BaseAddress = new Uri("https://localhost:7185/");
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+});
+
 builder.Services.AddScoped<UserService>();
 
 // Los específicos van primero, GlobalExceptionHandler va último como red de seguridad
