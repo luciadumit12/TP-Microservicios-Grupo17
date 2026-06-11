@@ -16,6 +16,13 @@ namespace Notifications.API.ExceptionHandlers
             // Si la excepción NO es BusinessRuleException, no la manejamos acá
             if (exception is not BusinessRuleException ex) return false;
 
+            // leemos el Correlation ID desde Items donde lo guardó el middleware
+            var correlationId = context.Items["CorrelationId"]?.ToString() ?? "";
+
+            // loggeamos como Warning porque es un error de negocio esperado
+            Serilog.Log.Warning("Error {ErrorCode} - CorrelationId {CorrelationId}: {Message}",
+                ex.ErrorCode, correlationId, ex.Message);
+
             // Armamos la respuesta 400 con el formato exacto que pide el TP
             context.Response.StatusCode = 400;
             await context.Response.WriteAsJsonAsync(new
@@ -23,10 +30,11 @@ namespace Notifications.API.ExceptionHandlers
                 type = "https://tools.ietf.org/html/rfc7231#section-6.5.1",
                 title = "Bad Request",
                 status = 400,
-                detail = "La solicitud no es válida.",
+                detail = "La solicitud no es valida.",
                 instance = context.Request.Path.Value,
                 errorCode = ex.ErrorCode,
-                errorMessage = ex.Message
+                errorMessage = ex.Message,
+                correlationId = correlationId
             }, cancellationToken);
 
             return true;
