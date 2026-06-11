@@ -1,10 +1,4 @@
-﻿// Captura las NotFoundException y arma la respuesta HTTP 404
-// con el formato de error que pide el TP (errorCode, errorMessage, etc.)
-// Maneja dos casos de Notifications.API:
-// NTF-001 → cuando el usuario no existe en Users.API
-// NTF-003 → cuando el usuario no tiene notificaciones registradas
-
-using Microsoft.AspNetCore.Diagnostics;
+﻿using Microsoft.AspNetCore.Diagnostics;
 using Notifications.API.Exceptions;
 
 namespace Notifications.API.ExceptionHandlers
@@ -14,11 +8,15 @@ namespace Notifications.API.ExceptionHandlers
         public async ValueTask<bool> TryHandleAsync(
             HttpContext context, Exception exception, CancellationToken cancellationToken)
         {
-            // Si la excepción NO es NotFoundException, no la manejamos acá
-            // Devolvemos false para que el sistema pruebe con el siguiente handler
             if (exception is not NotFoundException ex) return false;
 
-            // Armamos la respuesta 404 con el formato exacto que pide el TP
+            // leemos el Correlation ID desde Items donde lo guardó el middleware
+            var correlationId = context.Items["CorrelationId"]?.ToString() ?? "";
+
+            // loggeamos como Warning porque es un error de negocio esperado
+            Serilog.Log.Warning("Error {ErrorCode} - CorrelationId {CorrelationId}: {Message}",
+                ex.ErrorCode, correlationId, ex.Message);
+
             context.Response.StatusCode = 404;
             await context.Response.WriteAsJsonAsync(new
             {
@@ -26,12 +24,12 @@ namespace Notifications.API.ExceptionHandlers
                 title = "Not Found",
                 status = 404,
                 detail = "El recurso solicitado no fue encontrado.",
-                instance = context.Request.Path.Value,  // URL donde ocurrió el error
-                errorCode = ex.ErrorCode,               // NTF-001 o NTF-003
-                errorMessage = ex.Message               // Mensaje del catálogo del TP
+                instance = context.Request.Path.Value,
+                errorCode = ex.ErrorCode,
+                errorMessage = ex.Message,
+                correlationId = correlationId
             }, cancellationToken);
 
-            // Devolvemos true para avisarle al sistema que este handler manejó el error
             return true;
         }
     }
