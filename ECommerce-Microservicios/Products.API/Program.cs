@@ -32,7 +32,7 @@ builder.Services.AddSwaggerGen(c =>
     {
         Title = "Products API",
         Version = "v1",
-        Description = "API para gestión de productos del eCommerce. Permite crear, actualizar, eliminar y consultar productos."
+        Description = "API para la gestión de productos del e-commerce."
     });
     var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
     var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
