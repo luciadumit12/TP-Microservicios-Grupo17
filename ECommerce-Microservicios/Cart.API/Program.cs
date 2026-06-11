@@ -27,7 +27,7 @@ builder.Services.AddSwaggerGen(options =>
     {
         Title = "Cart API",
         Version = "v1",
-        Description = "API para la gestión del carrito del e-commerce.."
+        Description = "API para la gestión del carrito del e-commerce."
     });
 
     // Habilita XML Comments en Swagger
@@ -97,54 +97,40 @@ builder.Services.AddScoped<CartRepository>();
 
 var app = builder.Build();
 
-// AGREGADO: Inicializar la base de datos al arrancar
+// Inicializa la base de datos al arrancar la aplicación (crea la tabla si no existe)
 app.Services.GetRequiredService<DatabaseInitializer>().Initialize();
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-
-    app.UseSwaggerUI(options =>
-    {
-        options.SwaggerEndpoint(
-            "/swagger/v1/swagger.json",
-            "Cart API v1");
-    });
-}
-
-app.UseHttpsRedirection();
-
-// =========================
-// Correlation ID Middleware
-// =========================
+// 1. CORRELATION ID (Envuelve todo el ciclo de vida, permitiendo trazar incluso los errores críticos)
 app.Use(async (context, next) =>
 {
-    var correlationId =
-        context.Request.Headers["X-Correlation-Id"].FirstOrDefault()
-        ?? Guid.NewGuid().ToString();
-
+    var correlationId = context.Request.Headers["X-Correlation-Id"].FirstOrDefault()
+                        ?? Guid.NewGuid().ToString();
     context.Response.Headers["X-Correlation-Id"] = correlationId;
-
-    using (Serilog.Context.LogContext.PushProperty(
-        "CorrelationId",
-        correlationId))
+    using (Serilog.Context.LogContext.PushProperty("CorrelationId", correlationId))
     {
         await next();
     }
 });
 
+// 2. LOGGING DE PETICIONES DE SERILOG (Usa el CorrelationId inyectado arriba)
 app.UseSerilogRequestLogging();
 
-// =========================
-// Exception Handler Middleware 
-// =========================
+// 3. MANEJADOR GLOBAL DE ERRORES (Intercepta excepciones de los controladores y genera Problem Details)
 app.UseExceptionHandler();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+
+// 4. REDIRECCIÓN HTTPS (Ubicado abajo de Swagger para evitar que rompa las URLs absolutas de la UI)
+app.UseHttpsRedirection();
 
 app.MapControllers();
 
-// =========================
-// Health Checks 
-// =========================
+// --- MAPEADO DE ENDPOINTS DE HEALTH CHECKS CON FILTROS ---
 app.MapHealthChecks("/health");
 
 app.MapHealthChecks("/health/ready", new HealthCheckOptions
