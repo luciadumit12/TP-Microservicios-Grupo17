@@ -26,6 +26,7 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
 // Configura Swagger para leer los XML comments y mostrar la documentación de cada endpoint
+// Configura Swagger para leer los XML comments y mostrar la documentación de cada endpoint
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new()
@@ -37,6 +38,9 @@ builder.Services.AddSwaggerGen(c =>
     var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
     var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
     c.IncludeXmlComments(xmlPath);
+
+    
+    c.OperationFilter<Products.API.SwaggerFilters.ProductsSwaggerFilter>();
 });
 
 // CONFIGURACIÓN DE HEALTH CHECKS (Versión Nativa y Segura sin dependencias de terceros)
