@@ -72,7 +72,7 @@ builder.Services.AddSwaggerGen(c =>
 builder.Services.AddHealthChecks();
 
 builder.Services.AddSingleton<DatabaseInitializer>();
-builder.Services.AddSingleton<UserRepository>();
+builder.Services.AddScoped<UserRepository>();
 
 //conexion con Notifications.API para enviar notificacion cuando se registra un usuario
 builder.Services.AddHttpClient("NotificationsAPI", client =>
