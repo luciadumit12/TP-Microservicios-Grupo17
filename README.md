@@ -399,8 +399,6 @@ Cart: https://localhost:7168/swagger
 Notifications: https://localhost:7185/swagger
 ```
 
-Nota: el puerto de `Cart API` puede variar según la configuración.
-
 Los puertos pueden revisarse o modificarse desde el archivo:
 
 ```text
