@@ -13,8 +13,7 @@ namespace Notifications.API.Services
 {
     public class NotificationService
     {
-        //variable que guarda el Repository para poder hablar con la base de datos SQLite
-        //reemplaza la lista en memoria que teniamos antes
+        // variable que guarda el Repository para poder hablar con la base de datos SQLite
         private readonly NotificationRepository _repository;
 
         // Tipos de notificación válidos según el TP
@@ -22,15 +21,21 @@ namespace Notifications.API.Services
         private readonly List<string> _tiposValidos = new() { "Email", "Push", "SMS" };
 
         // HttpClientFactory para conectarse con Users.API
-        // Se registra en Program.cs con AddHttpClient("UsersAPI")
         private readonly IHttpClientFactory _httpClientFactory;
 
-        // .NET inyecta el Repository y el HttpClientFactory automaticamente
-        // gracias a que los registramos en Program.cs
-        public NotificationService(NotificationRepository repository, IHttpClientFactory httpClientFactory)
+        // IHttpContextAccessor para leer el Correlation ID del request actual
+        // y propagarlo en las llamadas HTTP salientes a Users.API
+        private readonly IHttpContextAccessor _httpContextAccessor;
+
+        // .NET inyecta el Repository, el HttpClientFactory y el HttpContextAccessor automaticamente
+        public NotificationService(
+            NotificationRepository repository,
+            IHttpClientFactory httpClientFactory,
+            IHttpContextAccessor httpContextAccessor)
         {
             _repository = repository;
             _httpClientFactory = httpClientFactory;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         // ─────────────────────────────
@@ -49,6 +54,13 @@ namespace Notifications.API.Services
             // NTF-001: verificar que el usuario existe en Users.API → 404 Not Found
             // Creamos el HttpClient configurado para hablar con Users.API
             var client = _httpClientFactory.CreateClient("UsersAPI");
+
+            // propagamos el Correlation ID en la llamada saliente a Users.API
+            // asi Users.API puede rastrear el mismo request en sus propios logs
+            var correlationId = _httpContextAccessor.HttpContext?.Items["CorrelationId"]?.ToString() ?? "";
+            if (!string.IsNullOrEmpty(correlationId))
+                client.DefaultRequestHeaders.TryAddWithoutValidation("X-Correlation-Id", correlationId);
+
             var response = await client.GetAsync($"api/users/{request.UsuarioId}");
 
             // Si Users.API responde que el usuario no existe → NTF-001
@@ -76,7 +88,7 @@ namespace Notifications.API.Services
                 FechaEnvio = DateTime.UtcNow
             };
 
-            //le pide al Repository que guarde la notificacion en la base de datos SQLite
+            // le pide al Repository que guarde la notificacion en la base de datos SQLite
             await _repository.Guardar(notificacion);
             return MapearAResponse(notificacion);
         }
@@ -88,7 +100,7 @@ namespace Notifications.API.Services
         // ─────────────────────────────
         public async Task<List<NotificationResponse>> ObtenerPorUsuario(Guid usuarioId)
         {
-            //le pide al Repository todas las notificaciones de ese usuario en la base de datos
+            // le pide al Repository todas las notificaciones de ese usuario en la base de datos
             var notificaciones = (await _repository.ObtenerPorUsuario(usuarioId)).ToList();
 
             // NTF-003: si el usuario no tiene notificaciones → 404 Not Found
