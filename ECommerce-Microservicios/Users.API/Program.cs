@@ -1,17 +1,30 @@
-using Serilog;
+﻿using Serilog;
 using Users.API.Data;
 using Users.API.ExceptionHandlers;
 using Users.API.Services;
 using Users.API.DTOs;
 using Users.API.SwaggerFilters;
 
+// ─────────────────────────────
+// CONFIGURAR SERILOG
+// consola → formato legible para desarrollo
+// archivo → formato JSON estructurado para produccion
+// Enrich.WithProperty agrega el nombre del servicio a todos los logs
+// Enrich.FromLogContext permite que el CorrelationId se incluya en cada log
+// ─────────────────────────────
 Log.Logger = new LoggerConfiguration()
-    .WriteTo.Console()
-    .WriteTo.File("logs/users-.log", rollingInterval: RollingInterval.Day)
+    .Enrich.FromLogContext()
+    .Enrich.WithProperty("Servicio", "Users.API")
+    .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
+    .WriteTo.File(
+        new Serilog.Formatting.Json.JsonFormatter(),
+        "logs/users-.log",
+        rollingInterval: RollingInterval.Day)
     .CreateLogger();
 
 var builder = WebApplication.CreateBuilder(args);
 
+//le dice a la aplicacion que use Serilog para registrar todo lo que pasa
 builder.Host.UseSerilog();
 
 builder.Services.AddControllers();
@@ -36,8 +49,8 @@ builder.Services.AddSwaggerGen(c =>
         Type = "object",
         Example = new Microsoft.OpenApi.Any.OpenApiObject
         {
-            ["nombre"] = new Microsoft.OpenApi.Any.OpenApiString("Mar�a"),
-            ["apellido"] = new Microsoft.OpenApi.Any.OpenApiString("Gonz�lez"),
+            ["nombre"] = new Microsoft.OpenApi.Any.OpenApiString("María"),
+            ["apellido"] = new Microsoft.OpenApi.Any.OpenApiString("González"),
             ["email"] = new Microsoft.OpenApi.Any.OpenApiString("maria@email.com"),
             ["password"] = new Microsoft.OpenApi.Any.OpenApiString("MiPassword123!")
         }
@@ -61,6 +74,7 @@ builder.Services.AddHealthChecks();
 builder.Services.AddSingleton<DatabaseInitializer>();
 builder.Services.AddSingleton<UserRepository>();
 
+//conexion con Notifications.API para enviar notificacion cuando se registra un usuario
 builder.Services.AddHttpClient("NotificationsAPI", client =>
 {
     client.BaseAddress = new Uri("https://localhost:7185/");
@@ -91,6 +105,11 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+// ─────────────────────────────
+// CORRELATION ID — va ANTES de UseExceptionHandler
+// genera un ID unico por request y lo guarda en context.Items
+// para que los handlers lo puedan leer cuando hay un error
+// ─────────────────────────────
 app.Use(async (context, next) =>
 {
     var correlationId = context.Request.Headers["X-Correlation-Id"].FirstOrDefault()
@@ -103,8 +122,10 @@ app.Use(async (context, next) =>
     }
 });
 
+//va DESPUES del Correlation ID para que los handlers ya tengan el ID disponible
 app.UseExceptionHandler();
 
+//loggea inicio/fin de cada request con duracion automaticamente
 app.UseSerilogRequestLogging();
 
 app.MapControllers();
