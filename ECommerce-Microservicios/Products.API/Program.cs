@@ -26,17 +26,21 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
 // Configura Swagger para leer los XML comments y mostrar la documentación de cada endpoint
+// Configura Swagger para leer los XML comments y mostrar la documentación de cada endpoint
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new()
     {
         Title = "Products API",
         Version = "v1",
-        Description = "API para gestión de productos del eCommerce. Permite crear, actualizar, eliminar y consultar productos."
+        Description = "API para la gestión de productos del e-commerce."
     });
     var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
     var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
     c.IncludeXmlComments(xmlPath);
+
+    
+    c.OperationFilter<Products.API.SwaggerFilters.ProductsSwaggerFilter>();
 });
 
 // CONFIGURACIÓN DE HEALTH CHECKS (Versión Nativa y Segura sin dependencias de terceros)

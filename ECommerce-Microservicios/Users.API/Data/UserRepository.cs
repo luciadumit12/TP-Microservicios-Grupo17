@@ -1,8 +1,4 @@
-﻿// UserRepository.cs — Maneja todas las operaciones con la base de datos
-// El Service usa este repositorio en lugar de la lista en memoria
-// Cada método abre una conexión, ejecuta la query y la cierra automáticamente
-
-using Dapper;
+﻿using Dapper;
 using Microsoft.Data.Sqlite;
 using Users.API.Models;
 
@@ -12,13 +8,12 @@ namespace Users.API.Data
     {
         private readonly string _connectionString;
 
-        public UserRepository(string connectionString)
+        public UserRepository(IConfiguration configuration)
         {
-            _connectionString = connectionString;
+            _connectionString = configuration.GetConnectionString("DefaultConnection")
+                ?? "Data Source=users.db";
         }
 
-        // Busca un usuario por email — usado en Register para verificar duplicados
-        // y en Login para encontrar el usuario
         public async Task<User?> GetByEmailAsync(string email)
         {
             using var connection = new SqliteConnection(_connectionString);
@@ -41,7 +36,6 @@ namespace Users.API.Data
             };
         }
 
-        // Busca un usuario por Id — usado por el endpoint interno GET /api/users/{id}
         public async Task<User?> GetByIdAsync(Guid id)
         {
             using var connection = new SqliteConnection(_connectionString);
@@ -64,7 +58,6 @@ namespace Users.API.Data
             };
         }
 
-        // Guarda un usuario nuevo en la base de datos
         public async Task InsertAsync(User user)
         {
             using var connection = new SqliteConnection(_connectionString);
@@ -85,8 +78,6 @@ namespace Users.API.Data
                 });
         }
 
-        // Actualiza el estado y los intentos fallidos de un usuario
-        // Se usa en Login cuando falla la contraseña o cuando se bloquea el usuario
         public async Task UpdateAsync(User user)
         {
             using var connection = new SqliteConnection(_connectionString);

@@ -3,7 +3,6 @@
 //cada vez que el Controller recibe una llamada HTTP, le pasa la llamada al OrderService para que la procese
 //por ej cuando llega un POST /api/orders, el OrderService valida el usuario, los productos, el stock y crea la orden
 
-//nombres de las carpetas de las clases que se nombran en este archivo
 using Orders.API.Data;
 using Orders.API.DTOs;
 using Orders.API.Exceptions;
@@ -14,19 +13,25 @@ namespace Orders.API.Services
     public class OrderService
     {
         //variable que guarda el Repository para poder hablar con la base de datos SQLite
-        //reemplaza la lista en memoria que teniamos antes
         private readonly OrderRepository _repository;
 
         //variable que guarda el HttpClientFactory para poder conectarse con Users.API y Products.API
-        //se registra en Program.cs con AddHttpClient("UsersAPI") y AddHttpClient("ProductsAPI")
         private readonly IHttpClientFactory _httpClientFactory;
 
-        //cuando el Service arranca, .NET le entrega el Repository y el HttpClientFactory automaticamente
-        //gracias a que los registramos en Program.cs
-        public OrderService(OrderRepository repository, IHttpClientFactory httpClientFactory)
+        //IHttpContextAccessor para leer el Correlation ID del request actual
+        //y propagarlo en las llamadas HTTP salientes a Users.API y Products.API
+        private readonly IHttpContextAccessor _httpContextAccessor;
+
+        //cuando el Service arranca, .NET le entrega el Repository, el HttpClientFactory
+        //y el HttpContextAccessor automaticamente gracias a que los registramos en Program.cs
+        public OrderService(
+            OrderRepository repository,
+            IHttpClientFactory httpClientFactory,
+            IHttpContextAccessor httpContextAccessor)
         {
             _repository = repository;
             _httpClientFactory = httpClientFactory;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         //define que cambios de estado son validos
@@ -41,30 +46,31 @@ namespace Orders.API.Services
             { "Cancelada",  new() { } }
         };
 
+        //METODO PRIVADO: obtiene el Correlation ID del request actual
+        //y lo agrega al HttpClient para propagarlo en las llamadas salientes
+        //asi Users.API y Products.API pueden rastrear el mismo request en sus propios logs
+        private void PropagateCorrelationId(HttpClient client)
+        {
+            var correlationId = _httpContextAccessor.HttpContext?.Items["CorrelationId"]?.ToString() ?? "";
+            if (!string.IsNullOrEmpty(correlationId))
+                client.DefaultRequestHeaders.TryAddWithoutValidation("X-Correlation-Id", correlationId);
+        }
+
         //METODO 1: ObtenerTodas
         //el Controller le pide todas las ordenes
         //si viene un usuarioId filtra por ese usuario
         //si no viene ningun usuarioId devuelve todas las ordenes
-        //le pide las ordenes al Repository que las busca en la base de datos SQLite
-        //convierte cada Order en un OrderResponse antes de devolvérselo al Controller
         public async Task<List<OrderResponse>> ObtenerTodas(Guid? usuarioId)
         {
-            //le pide al Repository todas las ordenes de la base de datos
             var ordenes = await _repository.ObtenerTodas(usuarioId);
-
-            //convierte cada Order en OrderResponse y los devuelve en una lista
             return ordenes.Select(MapearAResponse).ToList();
         }
 
         //METODO 2: ObtenerPorId
         //el Controller le pide una orden especifica por su id
-        //le pide la orden al Repository que la busca en la base de datos SQLite
         //si la orden no existe lanza NotFoundException con el codigo ORD-001
-        //el NotFoundExceptionHandler la atrapa y devuelve 404
-        //si la orden existe la convierte en OrderResponse y la devuelve
         public async Task<OrderResponse> ObtenerPorId(Guid id)
         {
-            //le pide al Repository la orden por su id
             var orden = await _repository.ObtenerPorId(id)
                 ?? throw new NotFoundException("ORD-001", "Orden no encontrada.");
 
@@ -75,7 +81,7 @@ namespace Orders.API.Services
         //el Controller le pide que cree una orden nueva
         //el metodo es async porque necesita esperar las respuestas de Users.API y Products.API
         //primero valida que la orden tenga al menos un item
-        //despues verifica que el usuario exista en Users.API → ORD-003
+        //despues verifica que el usuario exista y este activo en Users.API → ORD-003
         //despues verifica que cada producto exista en Products.API → ORD-004
         //despues verifica que haya stock suficiente para cada producto → ORD-005
         //si todo esta bien crea la orden con los precios reales y la guarda en la base de datos
@@ -86,29 +92,35 @@ namespace Orders.API.Services
                 throw new ValidationException("ORD-002", "Los datos de la orden son invalidos.");
 
             //ORD-003: verifica que el usuario exista en Users.API
-            //crea el HttpClient configurado para hablar con Users.API
             var usersClient = _httpClientFactory.CreateClient("UsersAPI");
-            //le pregunta a Users.API si el usuario existe, no necesita DTO porque solo le importa el status code de la respuesta
+            //propagamos el Correlation ID en la llamada saliente a Users.API
+            PropagateCorrelationId(usersClient);
             var userResponse = await usersClient.GetAsync($"api/users/{request.UsuarioId}");
             //si Users.API responde que no existe, lanza NotFoundException con ORD-003
             if (!userResponse.IsSuccessStatusCode)
                 throw new NotFoundException("ORD-003", "Usuario no encontrado al crear la orden.");
 
+            //verifica que el usuario este activo
+            //Users.API devuelve el campo Activo en su response
+            //si el usuario esta bloqueado (Activo = false) no se puede crear la orden
+            var usuarioDto = await userResponse.Content.ReadFromJsonAsync<UsuarioDto>();
+            if (usuarioDto is null || !usuarioDto.Activo)
+                throw new NotFoundException("ORD-003", "Usuario no encontrado al crear la orden.");
+
             //ORD-004 y ORD-005: verifica que cada producto exista y tenga stock suficiente en Products.API
             var productsClient = _httpClientFactory.CreateClient("ProductsAPI");
+            //propagamos el Correlation ID en la llamada saliente a Products.API
+            PropagateCorrelationId(productsClient);
             var items = new List<OrderItem>();
 
             foreach (var item in request.Items)
             {
                 //le pregunta a Products.API si el producto existe
                 var productResponse = await productsClient.GetAsync($"api/products/{item.ProductoId}");
-                //si Products.API responde que no existe, lanza NotFoundException con ORD-004
                 if (!productResponse.IsSuccessStatusCode)
                     throw new NotFoundException("ORD-004", "Producto no encontrado al crear la orden.");
 
                 //deserializa la respuesta de Products.API para obtener el precio y el stock
-                //ProductoDto es una clase interna que solo usa el OrderService para leer la respuesta de Products.API
-                //no va en la carpeta DTOs porque no es un objeto que ve el cliente
                 var product = await productResponse.Content.ReadFromJsonAsync<ProductoDto>()
                     ?? throw new NotFoundException("ORD-004", "Producto no encontrado al crear la orden.");
 
@@ -144,7 +156,6 @@ namespace Orders.API.Services
             //le pide al Repository que guarde la orden en la base de datos SQLite
             await _repository.Guardar(orden);
 
-            //convierte la orden en OrderResponse y la devuelve al Controller
             return MapearAResponse(orden);
         }
 
@@ -156,20 +167,15 @@ namespace Orders.API.Services
         //si es valido le pide al Repository que actualice el estado en la base de datos
         public async Task<OrderResponse> ActualizarEstado(Guid id, UpdateOrderStatusRequest request)
         {
-            //le pide al Repository la orden, si no existe avisa con ORD-001
             var orden = await _repository.ObtenerPorId(id)
                 ?? throw new NotFoundException("ORD-001", "Orden no encontrada.");
 
-            //verifica si el cambio de estado es valido
-            //por ej no puede pasar de Entregada a Pendiente
             if (!TransicionesValidas[orden.Estado].Contains(request.Estado))
                 throw new BusinessRuleException("ORD-006",
                     $"Una orden en estado '{orden.Estado}' no puede cambiar a '{request.Estado}'.");
 
-            //si el cambio es valido, le pide al Repository que actualice el estado en la base de datos
             await _repository.ActualizarEstado(id, request.Estado);
 
-            //vuelve a buscar la orden actualizada para devolversela al Controller
             orden.Estado = request.Estado;
             return MapearAResponse(orden);
         }
@@ -191,6 +197,15 @@ namespace Orders.API.Services
             Estado = orden.Estado,
             FechaCreacion = orden.FechaCreacion
         };
+
+        //DTO INTERNO: representa los datos que devuelve Users.API cuando se consulta un usuario
+        //solo lo usa el OrderService internamente para verificar si el usuario existe y esta activo
+        //no va en la carpeta DTOs porque no es un objeto que ve el cliente
+        private class UsuarioDto
+        {
+            public Guid Id { get; set; }
+            public bool Activo { get; set; }
+        }
 
         //DTO INTERNO: Para leer el mensaje http entre APIS, no entre apli-cliente.
         //ProductoDto representa los datos que devuelve Products.API cuando se consulta un producto

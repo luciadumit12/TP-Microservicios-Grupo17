@@ -8,26 +8,32 @@
 //Program.cs es donde le avisa al sistema que esas tres cosas existen antes
 //de que llegue cualquier llamada.
 
-//nombres de las carpetas de las clases que se nombran en program
 using Orders.API.Data;
 using Orders.API.ExceptionHandlers;
 using Orders.API.Services;
+using Orders.API.SwaggerFilters;
 //Serilog es una libreria externa que guarda registros de todo lo que pasa en el sistema
 //por ej cuando llega un POST, cuando ocurre un error, etc
 using Serilog;
 
-//configura Serilog antes de que arranque la aplicacion
-//WriteTo.Console() → muestra los logs en la consola de Visual Studio
-//WriteTo.File() → guarda los logs en un archivo dentro de la carpeta logs/
-//RollingInterval.Day → crea un archivo de log nuevo por dia
+// ─────────────────────────────
+// CONFIGURAR SERILOG
+// consola → formato legible para desarrollo
+// archivo → formato JSON estructurado para produccion
+// Enrich.WithProperty agrega el nombre del servicio a todos los logs
+// Enrich.FromLogContext permite que el CorrelationId se incluya en cada log
+// ─────────────────────────────
 Log.Logger = new LoggerConfiguration()
-    .WriteTo.Console()
-    .WriteTo.File("logs/orders-.log", rollingInterval: RollingInterval.Day)
+    .Enrich.FromLogContext()
+    .Enrich.WithProperty("Servicio", "Orders.API")
+    .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
+    .WriteTo.File(
+        new Serilog.Formatting.Json.JsonFormatter(),
+        "logs/orders-.log",
+        rollingInterval: RollingInterval.Day)
     .CreateLogger();
 
-//en esta variable se crea la aplicacion Orders.API,
-//→la app se guarda en un builder para que pueda configurarla antes de arrancarla
-//→con builder.Services.Add... por ej quien recibe la llamada, quien va a tener el swagger, que va a tener disponible el orderservice y quien va a saber manejar los errores
+//en esta variable se crea la aplicacion Orders.API
 //WebApplication es la clase .NET que representa una aplicacion web
 //CreateBuilder es el metodo para crear el constructor de esa aplicacion
 var builder = WebApplication.CreateBuilder(args);
@@ -36,9 +42,12 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog();
 
 //CONTROLLERS
-//configuraciones con builder.services.add ..
-//Le avisamos a la API que va a recibir llamadas HTTP, se prepara para recibir por ej POST /api/orders
+//Le avisamos a la API que va a recibir llamadas HTTP
 builder.Services.AddControllers();
+
+//permite que los Services puedan acceder al HttpContext actual
+//se usa para leer el CorrelationId y propagarlo en las llamadas salientes
+builder.Services.AddHttpContextAccessor();
 
 //hacemos que la app pueda leer y entender todos los endpoints del proyecto
 //GET  /api/orders
@@ -53,13 +62,23 @@ builder.Services.AddEndpointsApiExplorer();
 //sin esto swagger no muestra las descripciones ni los ejemplos de cada endpoint
 builder.Services.AddSwaggerGen(options =>
 {
+    //titulo, version y descripcion de la API que aparecen en la cabecera del Swagger
+    options.SwaggerDoc("v1", new()
+    {
+        Title = "Orders.API",
+        Version = "v1",
+        Description = "API para gestion de ordenes del eCommerce."
+    });
+
     var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
     var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
     options.IncludeXmlComments(xmlPath);
+
+    //registra el filtro que pone los ejemplos reales en la seccion Responses de cada endpoint
+    options.OperationFilter<OrdersOperationFilter>();
 });
 
 //se activa el health checks que permite saber si la aplicacion esta funcionando correctamente
-//se puede consultar en /health, /health/ready y /health/live
 //GET /health → estado general de la aplicacion. Responde Healthy si la app esta corriendo.
 //GET /health/ready → si la app esta lista para recibir llamadas.
 //GET /health/live → si la app esta viva. Solo verifica que el proceso esta corriendo.
@@ -77,7 +96,6 @@ builder.Services.AddScoped<OrderRepository>();
 //ACA USA LA CLASE DE LA CARPETA SERVICES
 //el AddScoped crea un OrderService por cada llamada HTTP
 //cada vez que el Controller recibe una llamada HTTP, esta linea le pasa automaticamente el OrderService
-//por ej cuando llega un POST /api/orders, el OrderService crea la orden y le asigna estado y la guarda.
 builder.Services.AddScoped<OrderService>();
 
 //ACA SE CONFIGURA LA CONEXION CON USERS.API
@@ -107,7 +125,7 @@ builder.Services.AddHttpClient("ProductsAPI", client =>
 
 //ACA USA LA CLASE DE LA CARPETA EXCEPTIONHANDLERS
 //Existen 4 manejadores de errores si el OrderService detecta un problema
-//estas lineas solo anotan, no hacen nada.
+//estas lineas solo anotan, no hacen nada todavia
 //cuando algo no se encuentra: ORD-001 (orden), ORD-003 (usuario), ORD-004 (producto) → devuelve 404
 builder.Services.AddExceptionHandler<NotFoundExceptionHandler>();
 //cuando los datos enviados son invalidos: ORD-002 → por ej cuando se crea una orden sin items → devuelve 400
@@ -130,13 +148,8 @@ var app = builder.Build();
 //si las tablas ya existen no hace nada
 app.Services.GetRequiredService<DatabaseInitializer>().Initialize();
 
-//Cada vez que se lance un error, esta linea atrapa ese error y
-//busca en la lista de handlers quien puede manejarlo. Activa los handlers y devuelve el JSON.
-app.UseExceptionHandler();
-
 //verifica si la aplicacion esta corriendo desde Visual Studio en modo desarrollo
 //si esta en desarrollo activa el swagger
-//activa la interfaz visual en el navegador y estaria listo para PROBAR
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -146,21 +159,30 @@ if (app.Environment.IsDevelopment())
 //redirige las llamadas HTTP a HTTPS para que sean seguras
 app.UseHttpsRedirection();
 
-//CORRELATION ID
-//cada llamada HTTP que llega recibe un id unico llamado Correlation ID
-//si la llamada ya trae un Correlation ID lo usa, si no lo genera automaticamente
-//ese id se agrega a todos los logs de esa llamada para poder rastrearla
-//por ej si ocurre un error, con el Correlation ID podes encontrar todos los logs de esa llamada
+// ─────────────────────────────
+// CORRELATION ID — va ANTES de UseExceptionHandler
+// cada llamada HTTP que llega recibe un id unico llamado Correlation ID
+// si la llamada ya trae un Correlation ID lo usa, si no lo genera automaticamente
+// ese id se guarda en context.Items para que los handlers lo puedan leer cuando hay un error
+// tambien se propaga en las llamadas HTTP salientes a Users.API y Products.API
+// ─────────────────────────────
 app.Use(async (context, next) =>
 {
     var correlationId = context.Request.Headers["X-Correlation-Id"].FirstOrDefault()
                         ?? Guid.NewGuid().ToString();
+    //lo guardamos en Items para que los handlers lo lean cuando hay un error
+    context.Items["CorrelationId"] = correlationId;
     context.Response.Headers["X-Correlation-Id"] = correlationId;
     using (Serilog.Context.LogContext.PushProperty("CorrelationId", correlationId))
     {
         await next();
     }
 });
+
+//Cada vez que se lance un error, esta linea atrapa ese error y
+//busca en la lista de handlers quien puede manejarlo. Activa los handlers y devuelve el JSON.
+//va DESPUES del Correlation ID para que los handlers ya tengan el ID disponible
+app.UseExceptionHandler();
 
 //activa el logging automatico de Serilog para cada llamada HTTP
 //registra cuando llego la llamada, cuanto tardo en procesarse y que resultado devolvio

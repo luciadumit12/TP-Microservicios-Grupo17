@@ -120,7 +120,7 @@ namespace Cart.API.Data
                     new
                     {
                         UsuarioId = cart.UsuarioId.ToString(),
-                        ProductId = item.ProductoId.ToString(), // Corregido el nombre para matchear con @ProductId
+                        ProductId = item.ProductoId.ToString(), // El mapeo exacto para @ProductId
                         item.Cantidad
                     });
             }
