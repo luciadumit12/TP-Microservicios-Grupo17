@@ -395,7 +395,7 @@ URLs indicadas:
 Products: https://localhost:7268/swagger
 Users: https://localhost:7075/swagger
 Orders: https://localhost:7168/swagger
-Cart: https://localhost:7168/swagger
+Cart: https://localhost:7199/swagger
 Notifications: https://localhost:7185/swagger
 ```
 
