@@ -5,18 +5,33 @@ using Notifications.API.Services;
 using Notifications.API.SwaggerFilters;
 using Serilog;
 
+// ─────────────────────────────
+// CONFIGURAR SERILOG
+// consola → formato legible para desarrollo
+// archivo → formato JSON estructurado para produccion
+// Enrich.WithProperty agrega el nombre del servicio a todos los logs
+// ─────────────────────────────
 Log.Logger = new LoggerConfiguration()
-    .WriteTo.Console()
-    .WriteTo.File("logs/notifications-.log", rollingInterval: RollingInterval.Day)
+    .Enrich.FromLogContext()
+    .Enrich.WithProperty("Servicio", "Notifications.API")
+    .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
+    .WriteTo.File(
+        new Serilog.Formatting.Json.JsonFormatter(),
+        "logs/notifications-.log",
+        rollingInterval: RollingInterval.Day)
     .CreateLogger();
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Reemplazar el logger default de .NET por Serilog
 builder.Host.UseSerilog();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
+// ─────────────────────────────
+// SWAGGER CON XML COMMENTS Y EJEMPLO PRECARGADO EN REQUEST BODY
+// ─────────────────────────────
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new()
@@ -31,6 +46,7 @@ builder.Services.AddSwaggerGen(c =>
     if (File.Exists(xmlPath))
         c.IncludeXmlComments(xmlPath);
 
+    // Ejemplo precargado en el Request Body del POST /api/notifications/send
     c.MapType<SendNotificationRequest>(() => new Microsoft.OpenApi.Models.OpenApiSchema
     {
         Type = "object",
@@ -42,15 +58,25 @@ builder.Services.AddSwaggerGen(c =>
         }
     });
 
+    // registra el filtro que pone los ejemplos reales en la seccion Responses
     c.OperationFilter<NotificationsOperationFilter>();
 });
 
 builder.Services.AddHealthChecks();
 
+// el DatabaseInitializer crea la tabla notifications en la base de datos cuando arranca la app
 builder.Services.AddSingleton<DatabaseInitializer>();
+
+// el NotificationRepository maneja todas las operaciones con la base de datos SQLite
 builder.Services.AddScoped<NotificationRepository>();
+
+// AddScoped = se crea un NotificationService nuevo por cada request HTTP
 builder.Services.AddScoped<NotificationService>();
 
+// ─────────────────────────────
+// CONEXION CON USERS.API
+// cuando el NotificationService necesite verificar si un usuario existe, usa este HttpClient
+// ─────────────────────────────
 builder.Services.AddHttpClient("UsersAPI", client =>
 {
     client.BaseAddress = new Uri("https://localhost:7075/");
@@ -59,15 +85,22 @@ builder.Services.AddHttpClient("UsersAPI", client =>
     ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
 });
 
-builder.Services.AddExceptionHandler<NotFoundExceptionHandler>();
-builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
-builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+// ─────────────────────────────
+// REGISTRAR EXCEPTION HANDLERS EN ORDEN
+// los especificos van primero, GlobalExceptionHandler va ultimo como red de seguridad
+// ─────────────────────────────
+builder.Services.AddExceptionHandler<NotFoundExceptionHandler>();       // NTF-001, NTF-003 → 404
+builder.Services.AddExceptionHandler<ValidationExceptionHandler>();     // NTF-002 → 400
+builder.Services.AddExceptionHandler<BusinessRuleExceptionHandler>();   // NTF-002 (regla de negocio) → 400
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();         // NTF-004 → 500
 builder.Services.AddProblemDetails();
 
 var app = builder.Build();
 
+// inicializa la base de datos al arrancar la aplicacion
 app.Services.GetRequiredService<DatabaseInitializer>().Initialize();
 
+// Swagger solo en desarrollo
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -78,7 +111,9 @@ app.UseHttpsRedirection();
 
 // ─────────────────────────────
 // CORRELATION ID — va ANTES de UseExceptionHandler
-// guarda el ID en context.Items para que los handlers lo puedan leer
+// genera un ID unico por request y lo guarda en context.Items
+// para que los handlers lo puedan leer cuando hay un error
+// tambien propaga el ID en las llamadas HTTP salientes a Users.API
 // ─────────────────────────────
 app.Use(async (context, next) =>
 {
@@ -93,13 +128,20 @@ app.Use(async (context, next) =>
     }
 });
 
-// va DESPUÉS del Correlation ID para que los handlers ya tengan el ID disponible
+// va DESPUES del Correlation ID para que los handlers ya tengan el ID disponible
 app.UseExceptionHandler();
 
+// loggea inicio/fin de cada request con duracion automaticamente
 app.UseSerilogRequestLogging();
 
 app.MapControllers();
 
+// ─────────────────────────────
+// HEALTH CHECKS
+// /health → estado general
+// /health/ready → esta listo para recibir requests?
+// /health/live → esta vivo el proceso?
+// ─────────────────────────────
 app.MapHealthChecks("/health");
 app.MapHealthChecks("/health/ready");
 app.MapHealthChecks("/health/live");
