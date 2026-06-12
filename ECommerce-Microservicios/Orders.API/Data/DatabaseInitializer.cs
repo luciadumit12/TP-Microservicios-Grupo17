@@ -26,22 +26,10 @@ namespace Orders.API.Data
             using var connection = new SqliteConnection(_connectionString);
             connection.Open();
 
-            //crea la tabla orders si no existe
-            //cada orden tiene: id, usuarioId, total, estado y fechaCreacion
-            connection.CreateCommand().CommandText = """
-                CREATE TABLE IF NOT EXISTS orders (
-                    id TEXT PRIMARY KEY,
-                    usuarioId TEXT NOT NULL,
-                    total REAL NOT NULL DEFAULT 0,
-                    estado TEXT NOT NULL DEFAULT 'Pendiente',
-                    fechaCreacion TEXT NOT NULL
-                );
-            """;
-            connection.CreateCommand().ExecuteNonQuery();
-
-            //crea la tabla order_items si no existe
-            //cada item tiene: id, orderId (referencia a la orden), productoId, cantidad y precioUnitario
-            //una orden puede tener muchos items
+            //crea las dos tablas en una sola operacion
+            //orders: guarda los datos generales de cada orden
+            //order_items: guarda los productos de cada orden
+            //una orden puede tener muchos items → por eso son dos tablas separadas
             var command = connection.CreateCommand();
             command.CommandText = """
                 CREATE TABLE IF NOT EXISTS orders (

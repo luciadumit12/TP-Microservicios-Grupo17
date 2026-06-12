@@ -11,6 +11,13 @@ namespace Orders.API.ExceptionHandlers
         public async ValueTask<bool> TryHandleAsync(
             HttpContext context, Exception exception, CancellationToken cancellationToken)
         {
+            //leemos el Correlation ID desde Items donde lo guardo el middleware
+            var correlationId = context.Items["CorrelationId"]?.ToString() ?? "";
+
+            //loggeamos como Error porque es un error inesperado
+            Serilog.Log.Error(exception, "Error ORD-007 - CorrelationId {CorrelationId}: {Message}",
+                correlationId, exception.Message);
+
             //no verifica el tipo de error porque atrapa cualquier cosa
             //siempre devuelve 500 con el codigo ORD-007
             context.Response.StatusCode = 500;
@@ -23,7 +30,8 @@ namespace Orders.API.ExceptionHandlers
                 //la URL donde ocurrio el error
                 instance = context.Request.Path.Value,
                 errorCode = "ORD-007",
-                errorMessage = "Error interno al procesar la orden."
+                errorMessage = "Error interno al procesar la orden.",
+                correlationId = correlationId
             }, cancellationToken);
 
             //devuelve true para avisarle al sistema que este handler manejo el error
