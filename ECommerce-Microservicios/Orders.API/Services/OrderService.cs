@@ -81,7 +81,7 @@ namespace Orders.API.Services
         //el Controller le pide que cree una orden nueva
         //el metodo es async porque necesita esperar las respuestas de Users.API y Products.API
         //primero valida que la orden tenga al menos un item
-        //despues verifica que el usuario exista en Users.API → ORD-003
+        //despues verifica que el usuario exista y este activo en Users.API → ORD-003
         //despues verifica que cada producto exista en Products.API → ORD-004
         //despues verifica que haya stock suficiente para cada producto → ORD-005
         //si todo esta bien crea la orden con los precios reales y la guarda en la base de datos
@@ -96,7 +96,15 @@ namespace Orders.API.Services
             //propagamos el Correlation ID en la llamada saliente a Users.API
             PropagateCorrelationId(usersClient);
             var userResponse = await usersClient.GetAsync($"api/users/{request.UsuarioId}");
+            //si Users.API responde que no existe, lanza NotFoundException con ORD-003
             if (!userResponse.IsSuccessStatusCode)
+                throw new NotFoundException("ORD-003", "Usuario no encontrado al crear la orden.");
+
+            //verifica que el usuario este activo
+            //Users.API devuelve el campo Activo en su response
+            //si el usuario esta bloqueado (Activo = false) no se puede crear la orden
+            var usuarioDto = await userResponse.Content.ReadFromJsonAsync<UsuarioDto>();
+            if (usuarioDto is null || !usuarioDto.Activo)
                 throw new NotFoundException("ORD-003", "Usuario no encontrado al crear la orden.");
 
             //ORD-004 y ORD-005: verifica que cada producto exista y tenga stock suficiente en Products.API
@@ -189,6 +197,15 @@ namespace Orders.API.Services
             Estado = orden.Estado,
             FechaCreacion = orden.FechaCreacion
         };
+
+        //DTO INTERNO: representa los datos que devuelve Users.API cuando se consulta un usuario
+        //solo lo usa el OrderService internamente para verificar si el usuario existe y esta activo
+        //no va en la carpeta DTOs porque no es un objeto que ve el cliente
+        private class UsuarioDto
+        {
+            public Guid Id { get; set; }
+            public bool Activo { get; set; }
+        }
 
         //DTO INTERNO: Para leer el mensaje http entre APIS, no entre apli-cliente.
         //ProductoDto representa los datos que devuelve Products.API cuando se consulta un producto
