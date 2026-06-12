@@ -1,8 +1,4 @@
-﻿// DatabaseInitializer.cs — Inicializa la base de datos al arrancar la aplicación
-// Crea la tabla users si no existe
-// Se llama una sola vez desde Program.cs al arrancar
-
-using Dapper;
+﻿using Dapper;
 using Microsoft.Data.Sqlite;
 
 namespace Users.API.Data
@@ -11,9 +7,10 @@ namespace Users.API.Data
     {
         private readonly string _connectionString;
 
-        public DatabaseInitializer(string connectionString)
+        public DatabaseInitializer(IConfiguration configuration)
         {
-            _connectionString = connectionString;
+            _connectionString = configuration.GetConnectionString("DefaultConnection")
+                ?? "Data Source=users.db";
         }
 
         public void Initialize()
@@ -21,8 +18,6 @@ namespace Users.API.Data
             using var connection = new SqliteConnection(_connectionString);
             connection.Open();
 
-            // Crea la tabla users si no existe
-            // Guarda todos los campos del modelo User
             connection.Execute("""
                 CREATE TABLE IF NOT EXISTS users (
                     id TEXT PRIMARY KEY,
