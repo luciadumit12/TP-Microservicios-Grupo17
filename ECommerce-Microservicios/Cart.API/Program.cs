@@ -31,12 +31,10 @@ builder.Services.AddSwaggerGen(options =>
     });
 
     // Habilita XML Comments en Swagger
-    var xmlFilename =
-        $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
 
-    options.IncludeXmlComments(
-        Path.Combine(AppContext.BaseDirectory, xmlFilename)
-    );
+    options.OperationFilter<Cart.API.SwaggerFilters.CartSwaggerFilter>();
 });
 
 // =========================

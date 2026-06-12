@@ -1,10 +1,9 @@
-﻿// El Controller es la puerta de entrada de la API.
-// Recibe requests HTTP, llama al Service y devuelve la respuesta.
-// No contiene lógica de negocio.
-
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Cart.API.DTOs;
 using Cart.API.Services;
+using Microsoft.AspNetCore.Http;
+using System;
+using System.Threading.Tasks;
 
 namespace Cart.API.Controllers
 {
@@ -23,25 +22,10 @@ namespace Cart.API.Controllers
         /// <summary>
         /// Obtener el carrito de un usuario.
         /// </summary>
-        /// <remarks>
-        /// ### Ejemplo de Éxito (200 OK):
-        /// 
-        ///     {
-        ///         "usuarioId": "a1b2c3d4-0000-0000-0000-111122223333",
-        ///         "items": [
-        ///             { "productoId": "3fa85f64-5717-4562-b3fc-2c963f66afa6", "cantidad": 1 }
-        ///         ],
-        ///         "fechaActualizacion": "2026-05-21T12:00:00Z"
-        ///     }
-        /// 
-        /// ### Ejemplo de Error (Carrito no encontrado - 404):
-        /// 
-        ///     {
-        ///         "errorCode": "CRT-001",
-        ///         "errorMessage": "Carrito no encontrado.",
-        ///         "status": 404
-        ///     }
-        /// </remarks>
+        /// <param name="userId">ID único del usuario dueño del carrito.</param>
+        /// <response code="200">Carrito obtenido con éxito.</response>
+        /// <response code="404">El carrito solicitado no fue encontrado.</response>
+        /// <response code="500">Error interno del servidor.</response>
         [HttpGet("{userId}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -56,40 +40,27 @@ namespace Cart.API.Controllers
         /// Agregar un producto al carrito.
         /// </summary>
         /// <remarks>
-        /// ### Ejemplo de Éxito (200 OK):
+        /// Ejemplo de petición (Request Body):
         /// 
+        ///     POST /api/cart/a1b2c3d4-0000-0000-0000-111122223333/items
         ///     {
-        ///         "usuarioId": "a1b2c3d4-0000-0000-0000-111122223333",
-        ///         "items": [
-        ///             { "productoId": "3fa85f64-5717-4562-b3fc-2c963f66afa6", "cantidad": 2 }
-        ///         ],
-        ///         "fechaActualizacion": "2026-05-21T12:00:00Z"
+        ///        "productId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+        ///        "quantity": 2
         ///     }
         /// 
-        /// ### Ejemplo de Error (Stock Insuficiente - 422):
-        /// 
-        ///     {
-        ///         "errorCode": "CRT-003",
-        ///         "errorMessage": "Stock insuficiente. Disponible: 5, solicitado total en carrito: 10",
-        ///         "status": 422
-        ///     }
-        /// 
-        /// ### Ejemplo de Error (Producto no encontrado - 404):
-        /// 
-        ///     {
-        ///         "errorCode": "CRT-002",
-        ///         "errorMessage": "Producto no encontrado.",
-        ///         "status": 404
-        ///     }
         /// </remarks>
+        /// <param name="userId">ID único del usuario.</param>
+        /// <param name="request">Datos del ítem y cantidad a agregar.</param>
+        /// <response code="200">Producto agregado con éxito.</response>
+        /// <response code="404">Producto o usuario no encontrado.</response>
+        /// <response code="422">Stock insuficiente para agregar al carrito.</response>
+        /// <response code="500">Error interno del servidor.</response>
         [HttpPost("{userId}/items")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> AddItem(
-            Guid userId,
-            [FromBody] AddCartItemRequest request)
+        public async Task<IActionResult> AddItem(Guid userId, [FromBody] AddCartItemRequest request)
         {
             var cart = await _service.AddItemAsync(userId, request);
             return Ok(cart);
@@ -99,73 +70,47 @@ namespace Cart.API.Controllers
         /// Actualizar la cantidad de un producto en el carrito.
         /// </summary>
         /// <remarks>
-        /// ### Ejemplo de Éxito (200 OK):
+        /// Ejemplo de petición (Request Body):
         /// 
+        ///     PUT /api/cart/a1b2c3d4-0000-0000-0000-111122223333/items/3fa85f64-5717-4562-b3fc-2c963f66afa6
         ///     {
-        ///         "usuarioId": "a1b2c3d4-0000-0000-0000-111122223333",
-        ///         "items": [
-        ///             { "productoId": "3fa85f64-5717-4562-b3fc-2c963f66afa6", "cantidad": 5 }
-        ///         ],
-        ///         "fechaActualizacion": "2026-05-21T12:10:00Z"
+        ///        "quantity": 5
         ///     }
         /// 
-        /// ### Ejemplo de Error (Cantidad Inválida - 400):
-        /// 
-        ///     {
-        ///         "errorCode": "CRT-004",
-        ///         "errorMessage": "Cantidad inválida.",
-        ///         "status": 400
-        ///     }
         /// </remarks>
+        /// <param name="userId">ID único del usuario.</param>
+        /// <param name="productId">ID único del producto a modificar.</param>
+        /// <param name="request">Nueva cantidad solicitada.</param>
+        /// <response code="200">Cantidad modificada con éxito.</response>
+        /// <response code="400">Cantidad inválida provista.</response>
+        /// <response code="404">Carrito o producto no encontrado.</response>
+        /// <response code="422">No hay stock disponible para la cantidad solicitada.</response>
+        /// <response code="500">Error interno del servidor.</response>
         [HttpPut("{userId}/items/{productId}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> UpdateItem(
-            Guid userId,
-            Guid productId,
-            [FromBody] UpdateCartItemRequest request)
+        public async Task<IActionResult> UpdateItem(Guid userId, Guid productId, [FromBody] UpdateCartItemRequest request)
         {
-            var cart = await _service.UpdateItemAsync(
-                userId,
-                productId,
-                request);
-
+            var cart = await _service.UpdateItemAsync(userId, productId, request);
             return Ok(cart);
         }
 
         /// <summary>
         /// Eliminar un producto específico del carrito.
         /// </summary>
-        /// <remarks>
-        /// ### Ejemplo de Éxito (204 No Content):
-        /// (Respuesta vacía - El producto fue eliminado correctamente)
-        /// 
-        /// ### Ejemplo de Error (Producto no encontrado en carrito - 404):
-        /// 
-        ///     {
-        ///         "errorCode": "CRT-002",
-        ///         "errorMessage": "Producto no encontrado en el carrito.",
-        ///         "status": 404
-        ///     }
-        /// 
-        /// ### Ejemplo de Error (Usuario no encontrado - 404):
-        /// 
-        ///     {
-        ///         "errorCode": "CRT-006",
-        ///         "errorMessage": "El usuario especificado no existe.",
-        ///         "status": 404
-        ///     }
-        /// </remarks>
+        /// <param name="userId">ID único del usuario.</param>
+        /// <param name="productId">ID único del producto a remover.</param>
+        /// <response code="204">Producto removido con éxito (sin contenido).</response>
+        /// <response code="404">Carrito, usuario o producto no encontrado.</response>
+        /// <response code="500">Error interno del servidor.</response>
         [HttpDelete("{userId}/items/{productId}")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> DeleteItem(
-            Guid userId,
-            Guid productId)
+        public async Task<IActionResult> DeleteItem(Guid userId, Guid productId)
         {
             await _service.DeleteItemAsync(userId, productId);
             return NoContent();
@@ -174,26 +119,10 @@ namespace Cart.API.Controllers
         /// <summary>
         /// Vaciar completamente el carrito de un usuario.
         /// </summary>
-        /// <remarks>
-        /// ### Ejemplo de Éxito (204 No Content):
-        /// (Respuesta vacía - El carrito ha sido vaciado)
-        /// 
-        /// ### Ejemplo de Error (Carrito no encontrado - 404):
-        /// 
-        ///     {
-        ///         "errorCode": "CRT-001",
-        ///         "errorMessage": "Carrito no encontrado.",
-        ///         "status": 404
-        ///     }
-        /// 
-        /// ### Ejemplo de Error (Usuario no encontrado - 404):
-        /// 
-        ///     {
-        ///         "errorCode": "CRT-006",
-        ///         "errorMessage": "El usuario especificado no existe.",
-        ///         "status": 404
-        ///     }
-        /// </remarks>
+        /// <param name="userId">ID único del usuario a vaciar.</param>
+        /// <response code="204">Carrito vaciado con éxito (sin contenido).</response>
+        /// <response code="404">Carrito o usuario no encontrado.</response>
+        /// <response code="500">Error interno del servidor.</response>
         [HttpDelete("{userId}")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
