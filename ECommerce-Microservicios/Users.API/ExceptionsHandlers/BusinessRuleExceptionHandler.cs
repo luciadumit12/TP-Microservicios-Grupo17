@@ -1,8 +1,4 @@
-﻿// Captura las BusinessRuleException y arma la respuesta HTTP 400 o 409
-// según el tipo de error de negocio
-
-using Microsoft.AspNetCore.Diagnostics;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Diagnostics;
 using Users.API.Exceptions;
 
 namespace Users.API.ExceptionHandlers
@@ -10,33 +6,38 @@ namespace Users.API.ExceptionHandlers
     public class BusinessRuleExceptionHandler : IExceptionHandler
     {
         public async ValueTask<bool> TryHandleAsync(
-            HttpContext httpContext,
-            Exception exception,
-            CancellationToken cancellationToken)
+            HttpContext context, Exception exception, CancellationToken cancellationToken)
         {
-            if (exception is not BusinessRuleException businessRuleException)
-                return false;
+            if (exception is not BusinessRuleException ex) return false;
 
-            // USR-001 es conflicto (email duplicado) → 409
-            // El resto son errores de negocio → 400
-            var statusCode = businessRuleException.ErrorCode == "USR-001"
-                ? StatusCodes.Status409Conflict
-                : StatusCodes.Status400BadRequest;
+            var correlationId = context.Items["CorrelationId"]?.ToString() ?? "";
 
-            var problemDetails = new ProblemDetails
+            Serilog.Log.Warning("Error {ErrorCode} - CorrelationId {CorrelationId}: {Message}",
+                ex.ErrorCode, correlationId, ex.Message);
+
+            // USR-001 → 409 (email duplicado)
+            // USR-002 → 400 (datos inválidos)
+            var statusCode = ex.ErrorCode == "USR-001" ? 409 : 400;
+            var type = statusCode == 409
+                ? "https://tools.ietf.org/html/rfc7231#section-6.5.9"
+                : "https://tools.ietf.org/html/rfc7231#section-6.5.1";
+            var title = statusCode == 409 ? "Conflict" : "Bad Request";
+            var detail = statusCode == 409
+                ? "Ya existe un recurso con esos datos."
+                : "Los datos enviados son invalidos.";
+
+            context.Response.StatusCode = statusCode;
+            await context.Response.WriteAsJsonAsync(new
             {
-                Type = "https://tools.ietf.org/html/rfc7231#section-6.5.0",
-                Title = "Business Rule Violation",
-                Status = statusCode,
-                Detail = "Se violó una regla de negocio.",
-                Instance = httpContext.Request.Path
-            };
-
-            problemDetails.Extensions["errorCode"] = businessRuleException.ErrorCode;
-            problemDetails.Extensions["errorMessage"] = businessRuleException.Message;
-
-            httpContext.Response.StatusCode = statusCode;
-            await httpContext.Response.WriteAsJsonAsync(problemDetails, cancellationToken);
+                type,
+                title,
+                status = statusCode,
+                detail,
+                instance = context.Request.Path.Value,
+                errorCode = ex.ErrorCode,
+                errorMessage = ex.Message,
+                correlationId
+            }, cancellationToken);
 
             return true;
         }
