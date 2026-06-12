@@ -98,4 +98,60 @@ namespace Cart.API.Data
                 new
                 {
                     UsuarioId = cart.UsuarioId.ToString(),
-                    FechaActualizacion = cart.FechaActualizacion.ToString("
+                    FechaActualizacion = cart.FechaActualizacion.ToString("o")
+                });
+
+            await conn.ExecuteAsync(
+                """
+                DELETE FROM cart_items
+                WHERE usuarioId = @UsuarioId
+                """,
+                new { UsuarioId = cart.UsuarioId.ToString() });
+
+            foreach (var item in cart.Items)
+            {
+                await conn.ExecuteAsync(
+                    """
+                    INSERT INTO cart_items
+                    (usuarioId, productoId, cantidad)
+                    VALUES
+                    (@UsuarioId, @ProductId, @Cantidad)
+                    """,
+                    new
+                    {
+                        UsuarioId = cart.UsuarioId.ToString(),
+                        ProductId = item.ProductoId.ToString(), // El mapeo exacto para @ProductId
+                        item.Cantidad
+                    });
+            }
+        }
+
+        public async Task Eliminar(Guid userId)
+        {
+            using var conn = CreateConnection();
+
+            await conn.ExecuteAsync(
+                """
+                DELETE FROM cart_items
+                WHERE usuarioId = @UsuarioId
+                """,
+                new { UsuarioId = userId.ToString() });
+
+            await conn.ExecuteAsync(
+                """
+                DELETE FROM carts
+                WHERE usuarioId = @UsuarioId
+                """,
+                new { UsuarioId = userId.ToString() });
+        }
+    }
+
+    public class ProductStockResult
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public Guid Id { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("stock")]
+        public int Stock { get; set; }
+    }
+}
