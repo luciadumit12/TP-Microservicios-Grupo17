@@ -19,9 +19,9 @@ namespace Users.API.SwaggerFilters
 
         private static void AplicarEjemplosRegister(OpenApiOperation operation)
         {
-            // Ejemplo de éxito 201
             if (operation.Responses.TryGetValue("201", out var resp201))
             {
+                resp201.Description = "Usuario registrado exitosamente";
                 resp201.Content.Clear();
                 resp201.Content["application/json"] = new OpenApiMediaType
                 {
@@ -37,9 +37,9 @@ namespace Users.API.SwaggerFilters
                 };
             }
 
-            // Ejemplo de error 400 - USR-002
             if (operation.Responses.TryGetValue("400", out var resp400))
             {
+                resp400.Description = "Datos invalidos, por ej campos vacios (USR-002)";
                 resp400.Content.Clear();
                 resp400.Content["application/json"] = new OpenApiMediaType
                 {
@@ -56,9 +56,9 @@ namespace Users.API.SwaggerFilters
                 };
             }
 
-            // Ejemplo de error 409 - USR-001
             if (operation.Responses.TryGetValue("409", out var resp409))
             {
+                resp409.Description = "El email ya esta registrado (USR-001)";
                 resp409.Content.Clear();
                 resp409.Content["application/json"] = new OpenApiMediaType
                 {
@@ -75,9 +75,9 @@ namespace Users.API.SwaggerFilters
                 };
             }
 
-            // Ejemplo de error 500 - USR-006
             if (operation.Responses.TryGetValue("500", out var resp500))
             {
+                resp500.Description = "Error interno del servidor (USR-006)";
                 resp500.Content.Clear();
                 resp500.Content["application/json"] = new OpenApiMediaType
                 {
@@ -97,9 +97,9 @@ namespace Users.API.SwaggerFilters
 
         private static void AplicarEjemplosLogin(OpenApiOperation operation)
         {
-            // Ejemplo de éxito 200
             if (operation.Responses.TryGetValue("200", out var resp200))
             {
+                resp200.Description = "Login exitoso";
                 resp200.Content.Clear();
                 resp200.Content["application/json"] = new OpenApiMediaType
                 {
@@ -115,9 +115,9 @@ namespace Users.API.SwaggerFilters
                 };
             }
 
-            // Ejemplo de error 400 - USR-002
             if (operation.Responses.TryGetValue("400", out var resp400))
             {
+                resp400.Description = "Datos invalidos, por ej campos vacios (USR-002)";
                 resp400.Content.Clear();
                 resp400.Content["application/json"] = new OpenApiMediaType
                 {
@@ -134,9 +134,9 @@ namespace Users.API.SwaggerFilters
                 };
             }
 
-            // Ejemplo de error 401 - USR-003
             if (operation.Responses.TryGetValue("401", out var resp401))
             {
+                resp401.Description = "Credenciales incorrectas (USR-003)";
                 resp401.Content.Clear();
                 resp401.Content["application/json"] = new OpenApiMediaType
                 {
@@ -153,9 +153,9 @@ namespace Users.API.SwaggerFilters
                 };
             }
 
-            // Ejemplo de error 403 - USR-004
             if (operation.Responses.TryGetValue("403", out var resp403))
             {
+                resp403.Description = "Usuario bloqueado (USR-004 o USR-005)";
                 resp403.Content.Clear();
                 resp403.Content["application/json"] = new OpenApiMediaType
                 {
@@ -172,9 +172,9 @@ namespace Users.API.SwaggerFilters
                 };
             }
 
-            // Ejemplo de error 500 - USR-006
             if (operation.Responses.TryGetValue("500", out var resp500))
             {
+                resp500.Description = "Error interno del servidor (USR-006)";
                 resp500.Content.Clear();
                 resp500.Content["application/json"] = new OpenApiMediaType
                 {
