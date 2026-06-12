@@ -1,8 +1,4 @@
-﻿// El Controller es la puerta de entrada de la API.
-// Recibe los requests HTTP, llama al Service y devuelve la respuesta.
-// NO tiene lógica de negocio — solo delega al Service.
-
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Users.API.DTOs;
 using Users.API.Services;
 
@@ -20,21 +16,12 @@ namespace Users.API.Controllers
             _userService = userService;
         }
 
-        /// <summary>
-        /// Registrar un nuevo usuario en el sistema.
-        /// </summary>
-        /// <remarks>
-        /// Ejemplo de request:
-        ///
-        ///     POST /api/users/register
-        ///     {
-        ///         "nombre": "María",
-        ///         "apellido": "González",
-        ///         "email": "maria@email.com",
-        ///         "password": "MiPassword123!"
-        ///     }
-        ///
-        /// </remarks>
+        /// <summary>Registrar un nuevo usuario en el sistema</summary>
+        /// <param name="request">Datos del usuario: nombre, apellido, email y password</param>
+        /// <response code="201">Usuario registrado exitosamente</response>
+        /// <response code="400">Datos invalidos, por ej campos vacios (USR-002)</response>
+        /// <response code="409">El email ya esta registrado (USR-001)</response>
+        /// <response code="500">Error interno del servidor (USR-006)</response>
         [HttpPost("register")]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -43,22 +30,16 @@ namespace Users.API.Controllers
         public async Task<IActionResult> Register([FromBody] RegisterUserRequest request)
         {
             var response = await _userService.Register(request);
-            return CreatedAtAction(nameof(Register), new { id = response.Id }, response);
+            return StatusCode(201, response);
         }
 
-        /// <summary>
-        /// Autenticar un usuario existente con email y contraseña.
-        /// </summary>
-        /// <remarks>
-        /// Ejemplo de request:
-        ///
-        ///     POST /api/users/login
-        ///     {
-        ///         "email": "maria@email.com",
-        ///         "password": "MiPassword123!"
-        ///     }
-        ///
-        /// </remarks>
+        /// <summary>Autenticar un usuario existente con email y contrasena</summary>
+        /// <param name="request">Credenciales del usuario: email y password</param>
+        /// <response code="200">Login exitoso</response>
+        /// <response code="400">Datos invalidos, por ej campos vacios (USR-002)</response>
+        /// <response code="401">Credenciales incorrectas (USR-003)</response>
+        /// <response code="403">Usuario bloqueado (USR-004 o USR-005)</response>
+        /// <response code="500">Error interno del servidor (USR-006)</response>
         [HttpPost("login")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -71,9 +52,11 @@ namespace Users.API.Controllers
             return Ok(response);
         }
 
-        /// <summary>
-        /// Obtener un usuario por ID. Endpoint interno para comunicación entre microservicios.
-        /// </summary>
+        /// <summary>Obtener un usuario por ID. Endpoint interno para comunicacion entre microservicios</summary>
+        /// <param name="id">ID unico del usuario</param>
+        /// <response code="200">Usuario encontrado exitosamente</response>
+        /// <response code="404">Usuario no encontrado</response>
+        /// <response code="500">Error interno del servidor (USR-006)</response>
         [HttpGet("{id}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
