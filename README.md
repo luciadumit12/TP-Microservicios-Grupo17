@@ -1,31 +1,69 @@
-﻿# TP-Microservicios-Grupo17
+﻿﻿# TP-Microservicios-Grupo17
 # E-Commerce System — Arquitectura de Microservicios (.NET 8)
+
+Sistema de E-Commerce desarrollado con **C# y .NET 8**, basado en una arquitectura de microservicios.
+El proyecto fue realizado para la materia **Construcción de Aplicaciones Informáticas**.
+
+La solución está compuesta por distintas **REST APIs independientes**, cada una con una responsabilidad específica dentro del sistema: productos, usuarios, órdenes, carritos y notificaciones.
+
+---
+
+## Integrantes
+
+| Integrante                      | Servicio/s desarrollado/s |
+| ------------                    | ------------------------- |
+| Lucia Dumit                     | Products.API              |
+| Lourdes Sofia Figueredo         | Users.API                 |
+| Katia Nicole Hellwag            | Orders.API                |
+| Lucia Dumit                     | Cart.API                  |
+| Katia & Sofia                   | Notifications.API         |
+
+---
 
 ## 1. Descripción General
 
-Este proyecto implementa un sistema de E-Commerce basado en una arquitectura de microservicios, desarrollado con **C# y .NET 8** para la materia **Construcción de Aplicaciones Informáticas**.
+Este proyecto implementa un sistema de E-Commerce basado en una arquitectura de microservicios, desarrollado con **C# y .NET 8**.
 
-La solución está compuesta por distintas **REST APIs independientes**, cada una con responsabilidades bien definidas, orientadas a gestionar productos, usuarios, órdenes, carritos y notificaciones. Según la implementación de cada servicio, se utiliza el patrón de **Minimal APIs** o **Controllers**.
+Cada microservicio funciona como una API REST independiente y posee responsabilidades bien definidas. Según la implementación de cada servicio, se utiliza el patrón de **Minimal APIs** o **Controllers**.
 
-El sistema integra lógica de negocio compleja y componentes transversales de nivel profesional, como manejo global de errores, logging estructurado, observabilidad, health checks, documentación con Swagger/OpenAPI y comunicación entre servicios.
+El sistema integra lógica de negocio y componentes transversales orientados a mejorar la calidad, trazabilidad y mantenibilidad de la solución, tales como:
+
+* Manejo global de errores.
+* Logging estructurado.
+* Correlation ID.
+* Health Checks.
+* Documentación interactiva con Swagger/OpenAPI.
+* Comunicación HTTP entre microservicios.
+* Persistencia independiente por servicio.
 
 ---
 
 ## 2. Arquitectura del Sistema
 
-El sistema sigue una topología de microservicios donde cada componente posee su propia base de datos, aplicando el enfoque **Database per Service**.
+El sistema sigue una topología de microservicios, donde cada componente representa una unidad funcional independiente.
 
-Los microservicios se comunican entre sí mediante llamadas HTTP directas para realizar validaciones críticas de negocio.
+Cada API posee su propia base de datos SQLite, aplicando el enfoque **Database per Service**. Esto permite que cada servicio administre sus propios datos sin depender directamente de las tablas internas de otros microservicios.
 
-### Diagrama de Arquitectura
+La comunicación entre servicios se realiza mediante llamadas HTTP directas, principalmente para resolver validaciones de negocio que requieren información de otro dominio.
 
-El diagrama de arquitectura se encuentra disponible en la documentación externa del proyecto:
+Por ejemplo:
 
-[Ver documentación en Google Drive](https://drive.google.com/file/d/1bsc-O8ZqRWA7KSTwKya9eq1pzf718zYq/view?usp=drive_link)
+* `Cart API` valida productos contra `Products API`.
+* `Orders API` valida stock contra `Products API`.
+* `Users API` se comunica con `Notifications API` para disparar notificaciones luego del registro.
+* `Products API` valida contra `Orders API` antes de permitir ciertas operaciones sobre productos.
 
 ---
 
-## 3. Estructura de la Solución
+## 3. Diagrama de Arquitectura
+
+El diagrama de arquitectura se encuentra disponible en la documentación externa del proyecto:
+
+[Ver documentación en Google Drive](https://drive.google.com/drive/folders/15alpDCkzEYtIvMggGUPe3p_fPFNtdHPU?usp=sharing)
+
+---
+
+## 4. Estructura de la Solución
 
 La solución está organizada de la siguiente manera:
 
@@ -45,60 +83,136 @@ TP-Microservicios-Grupo17/
 └── README.md
 ```
 
-### Microservicios incluidos
+### Descripción de carpetas principales
 
-#### Products API
-
-Responsable de la gestión del catálogo de productos y stock.
-
-También participa en validaciones de stock y bloquea la eliminación de productos si existen órdenes activas en `Orders API`.
-
-#### Users API
-
-Responsable del registro, autenticación y gestión de usuarios.
-
-Incluye una política de bloqueo luego de 3 intentos fallidos de login.
-
-Además, dispara eventos de notificación hacia `Notifications API` luego de un registro exitoso.
-
-#### Orders API
-
-Responsable del procesamiento de órdenes de compra.
-
-Valida stock contra `Products API` antes de confirmar una compra y gestiona transiciones de estado de las órdenes.
-
-#### Cart API
-
-Responsable de la gestión del carrito de compras por usuario.
-
-Administra ítems persistentes por usuario y valida la existencia de productos en `Products API` y usuarios en `Users API`.
-
-#### Notifications API
-
-Responsable de la simulación de envío de notificaciones.
-
-Contempla notificaciones por:
-
-* Email
-* SMS
-* Push
+* `.github/`: contiene configuraciones relacionadas con GitHub.
+* `docs/`: carpeta destinada a documentación, capturas y recursos complementarios del proyecto.
+* `ECommerce-Microservicios/`: carpeta principal de la solución.
+* `Cart.API/`: microservicio encargado del carrito de compras.
+* `Notifications.API/`: microservicio encargado de las notificaciones.
+* `Orders.API/`: microservicio encargado de las órdenes de compra.
+* `Products.API/`: microservicio encargado del catálogo de productos y stock.
+* `Users.API/`: microservicio encargado de usuarios, registro y autenticación.
+* `ECommerce-Microservicios.slnx`: archivo de solución del proyecto.
+* `README.md`: guía principal del proyecto.
 
 ---
 
-## 4. Tecnologías y Componentes Utilizados
+## 5. Microservicios Incluidos
 
-El proyecto implementa los siguientes pilares técnicos:
+### Products API
 
-### Runtime
+Microservicio responsable de la gestión del catálogo de productos y el stock disponible.
 
-* .NET 8
-* .NET 8.0 SDK o superior
+Entre sus responsabilidades se encuentran:
+
+* Administrar productos del catálogo.
+* Gestionar información asociada al stock.
+* Participar en validaciones de stock solicitadas por otros servicios.
+* Bloquear la eliminación de productos si existen órdenes activas en `Orders API`.
+
+---
+
+### Users API
+
+Microservicio responsable del registro, autenticación y gestión de usuarios.
+
+Entre sus responsabilidades se encuentran:
+
+* Registrar nuevos usuarios.
+* Gestionar el inicio de sesión.
+* Aplicar una política de bloqueo luego de 3 intentos fallidos de login.
+* Disparar eventos de notificación hacia `Notifications API` luego de un registro exitoso.
+
+---
+
+### Orders API
+
+Microservicio responsable del procesamiento de órdenes de compra.
+
+Entre sus responsabilidades se encuentran:
+
+* Crear y gestionar órdenes.
+* Validar stock contra `Products API` antes de confirmar una compra.
+* Gestionar transiciones de estado de las órdenes.
+* Mantener la información propia de las compras realizadas.
+
+---
+
+### Cart API
+
+Microservicio responsable de la gestión del carrito de compras por usuario.
+
+Entre sus responsabilidades se encuentran:
+
+* Administrar ítems persistentes por usuario.
+* Agregar, modificar o quitar productos del carrito.
+* Validar la existencia de productos en `Products API`.
+* Validar usuarios en `Users API`.
+
+---
+
+### Notifications API
+
+Microservicio responsable de la simulación del envío de notificaciones.
+
+Contempla distintos canales de notificación:
+
+* Email.
+* SMS.
+* Push.
+
+Su objetivo es centralizar la lógica asociada al envío o registro de alertas generadas por otros servicios del sistema.
+
+---
+
+## 6. Tecnologías Utilizadas
+
+El proyecto utiliza las siguientes tecnologías y componentes:
+
+### Lenguaje y Framework
+
+* C#.
+* .NET 8.
+* ASP.NET Core.
+* REST APIs.
 
 ### Persistencia
 
+* SQLite como motor de base de datos.
+* Dapper como micro-ORM para el acceso a datos.
+
+### Documentación
+
+* Swagger.
+* OpenAPI.
+* Swashbuckle.
+* Comentarios XML y ejemplos de respuestas.
+
+### Observabilidad y Logging
+
+* Serilog.
+* Logs en consola.
+* Logs en archivo JSON.
+* Correlation ID para trazabilidad entre servicios.
+
+### Comunicación entre Servicios
+
+* HttpClientFactory.
+* Llamadas HTTP entre microservicios.
+
+### Monitoreo
+
+* Health Checks.
+* Endpoints `/health`, `/health/live` y `/health/ready`.
+
+---
+
+## 7. Persistencia y Bases de Datos
+
 Cada microservicio posee su propia base de datos SQLite.
 
-La persistencia se gestiona utilizando **Dapper** como micro-ORM, permitiendo un acceso eficiente a los datos.
+Este enfoque permite mantener el aislamiento de datos entre servicios y evita que una API dependa directamente de las tablas internas de otra.
 
 Las bases de datos se inicializan automáticamente al primer arranque de cada servicio.
 
@@ -107,30 +221,9 @@ Ejemplos de archivos de base de datos:
 * `products.db`
 * `users.db`
 
-### Documentación
-
-Cada microservicio expone documentación interactiva mediante **Swagger / OpenAPI**, disponible en el endpoint `/swagger`.
-
-Se utiliza **Swashbuckle** con comentarios XML y ejemplos de respuestas de éxito y error.
-
-### Logging Estructurado
-
-Se utiliza **Serilog** con doble destino:
-
-* Consola, orientada principalmente a errores.
-* Archivo JSON, utilizado para auditoría de requests.
-
-### Comunicación entre Microservicios
-
-Se utiliza **HttpClientFactory** para la comunicación entre servicios.
-
-Ejemplo:
-
-* `Orders API` consulta a `Products API` para validar stock antes de confirmar una compra.
-
 ---
 
-## 5. Aspectos Transversales
+## 8. Aspectos Transversales
 
 ### Manejo Global de Errores
 
@@ -144,14 +237,14 @@ Cada respuesta de error incluye:
 * `errorMessage`: descripción legible del error de negocio.
 * `instance`: ruta del endpoint que originó el error.
 
-Ejemplos de códigos propios:
+Ejemplos de códigos propios utilizados en el proyecto:
 
-* `PRD-001`
+* `PRD-001`.
 * `ORD-005`, utilizado para casos de stock insuficiente.
 
 Las capturas de Swagger muestran ejemplos de estas respuestas de error y se encuentran disponibles en la documentación externa del proyecto:
 
-[Ver capturas en Google Drive](https://docs.google.com/document/d/1SySgl7b7wYgqREMab5SLqCl1qt3KAVAiNU3hg5uJvvc/edit?usp=drive_link)
+[Ver capturas en Google Drive](https://drive.google.com/drive/u/0/folders/15alpDCkzEYtIvMggGUPe3p_fPFNtdHPU)
 
 ---
 
@@ -159,9 +252,24 @@ Las capturas de Swagger muestran ejemplos de estas respuestas de error y se encu
 
 El sistema genera un `X-Correlation-Id` único por cada request HTTP.
 
-Este identificador se propaga en todas las llamadas salientes entre microservicios y se incluye en todos los logs de Serilog.
+Este identificador se propaga en las llamadas salientes entre microservicios y se incluye en los logs generados por Serilog.
 
 Esto permite realizar la trazabilidad completa de una operación a través de los distintos servicios del sistema.
+
+Esta funcionalidad es especialmente útil para analizar errores o seguir el recorrido de una solicitud cuando intervienen varias APIs.
+
+---
+
+### Logging Estructurado
+
+Se utiliza **Serilog** como herramienta de logging estructurado.
+
+El proyecto contempla doble destino para los logs:
+
+* Consola, orientada principalmente a errores y seguimiento durante la ejecución.
+* Archivo JSON, utilizado para auditoría de requests.
+
+El uso de logs estructurados permite consultar información de forma más clara y ordenada, facilitando el análisis de incidentes y el seguimiento de operaciones.
 
 ---
 
@@ -171,7 +279,7 @@ Cada microservicio expone endpoints de monitoreo operativo para verificar el est
 
 Endpoints disponibles:
 
-```
+```text
 /health
 /health/live
 /health/ready
@@ -179,14 +287,17 @@ Endpoints disponibles:
 
 Detalle:
 
-* `/health/live`: indica el estado del proceso.
-* `/health/ready`: indica el estado de las dependencias, como la base de datos SQLite.
+* `/health`: informa el estado general del servicio.
+* `/health/live`: indica si el proceso se encuentra activo.
+* `/health/ready`: indica si las dependencias del servicio están disponibles, como la base de datos SQLite.
 
 ---
 
-## 6. Flujo de Comunicación entre Servicios
+## 9. Comunicación entre Microservicios
 
-El sistema opera mediante llamadas HTTP directas entre microservicios para resolver validaciones críticas.
+Los microservicios se comunican mediante llamadas HTTP directas.
+
+Para esta comunicación se utiliza **HttpClientFactory**, lo que permite centralizar y administrar de forma más ordenada los clientes HTTP utilizados por las APIs.
 
 Principales interacciones:
 
@@ -196,33 +307,87 @@ Principales interacciones:
 * `Users API` dispara eventos de notificación hacia `Notifications API` luego de un registro exitoso.
 * `Products API` bloquea la eliminación de productos si existen órdenes activas en `Orders API`.
 
+Debido a estas dependencias, para probar correctamente los flujos completos del sistema se recomienda ejecutar todos los microservicios al mismo tiempo.
+
 ---
 
-## 7. Guía de Ejecución
-
-### Requisitos previos
+## 10. Requisitos Previos
 
 Para ejecutar el proyecto es necesario contar con:
 
 * .NET 8.0 SDK o superior.
-
-### Pasos para iniciar los servicios
-
-1. Clonar el repositorio.
-
-2. Desde la raíz de la solución, restaurar las dependencias.
-
-3. Ejecutar los servicios.
-
-Se recomienda abrir una terminal por servicio o utilizar la opción **Multiple Startup Projects** en Visual Studio.
-
-4. Acceder a la documentación interactiva de cada microservicio mediante Swagger.
+* Git.
+* Visual Studio 2022 o una terminal compatible con .NET CLI.
 
 ---
 
-## 8. URLs de Swagger
+## 11. Cómo Ejecutar el Proyecto
 
-Cada servicio expone su documentación interactiva en `/swagger`.
+### 1. Clonar el repositorio
+
+```bash
+git clone URL_DEL_REPOSITORIO
+cd TP-Microservicios-Grupo17
+```
+
+### 2. Ingresar a la carpeta de la solución
+
+```bash
+cd ECommerce-Microservicios
+```
+
+### 3. Restaurar dependencias
+
+```bash
+dotnet restore
+```
+
+### 4. Ejecutar los servicios
+
+Cada microservicio puede ejecutarse desde una terminal independiente.
+
+#### Products API
+
+```bash
+cd Products.API
+dotnet run
+```
+
+#### Users API
+
+```bash
+cd Users.API
+dotnet run
+```
+
+#### Orders API
+
+```bash
+cd Orders.API
+dotnet run
+```
+
+#### Cart API
+
+```bash
+cd Cart.API
+dotnet run
+```
+
+#### Notifications API
+
+```bash
+cd Notifications.API
+dotnet run
+```
+
+También puede utilizarse la opción **Multiple Startup Projects** desde Visual Studio para levantar varios servicios al mismo tiempo.
+
+---
+
+## 12. Acceso a Swagger
+
+Cada servicio expone su documentación interactiva en el endpoint `/swagger`.
 
 URLs indicadas:
 
@@ -234,11 +399,52 @@ Cart: https://localhost:7168/swagger
 Notifications: https://localhost:7185/swagger
 ```
 
+Nota: el puerto de `Cart API` puede variar según la configuración.
+
+Los puertos pueden revisarse o modificarse desde el archivo:
+
+```text
+Properties/launchSettings.json
+```
+
+dentro de cada microservicio.
+
 ---
 
-## 9. Documentación
+## 13. Acceso a Health Checks
 
-La documentación final del proyecto se encuentra disponible en Google Drive en la siguiente carpeta:
+Una vez iniciado un microservicio, se pueden consultar sus endpoints de monitoreo desde el navegador o una herramienta como Postman.
+
+Endpoints disponibles:
+
+```text
+https://localhost:[PUERTO]/health
+https://localhost:[PUERTO]/health/live
+https://localhost:[PUERTO]/health/ready
+```
+
+Estos endpoints permiten verificar si el servicio está activo y si sus dependencias están listas para operar.
+
+---
+
+## 14. Recomendaciones para Pruebas
+
+Para probar operaciones simples de cada API, puede ejecutarse únicamente el microservicio correspondiente.
+
+Sin embargo, para probar flujos que requieren validaciones cruzadas entre servicios, se recomienda levantar todas las APIs en simultáneo.
+
+Ejemplos:
+
+* Para validar operaciones del carrito, se recomienda tener activo `Cart API`, `Products API` y `Users API`.
+* Para crear órdenes, se recomienda tener activo `Orders API`, `Products API` y `Users API`.
+* Para validar notificaciones luego del registro, se recomienda tener activo `Users API` y `Notifications API`.
+* Para validar restricciones relacionadas con productos y órdenes, se recomienda tener activo `Products API` y `Orders API`.
+
+---
+
+## 15. Documentación del Proyecto
+
+La documentación adicional del proyecto se encuentra disponible en Google Drive:
 
 [Ver documentación del proyecto](https://drive.google.com/drive/u/0/folders/15alpDCkzEYtIvMggGUPe3p_fPFNtdHPU)
 
@@ -250,7 +456,7 @@ Incluye:
 
 ---
 
-## 10. Resumen del Proyecto
+## 16. Resumen del Proyecto
 
 Este sistema de E-Commerce implementa una arquitectura de microservicios con servicios independientes para productos, usuarios, órdenes, carrito y notificaciones.
 
@@ -266,4 +472,4 @@ Además, el proyecto incorpora componentes transversales como:
 * Health Checks para monitoreo operativo.
 * Comunicación HTTP entre microservicios mediante HttpClientFactory.
 
-Este proyecto fue desarrollado para la materia **Construcción de Aplicaciones Informáticas**.
+El proyecto fue desarrollado para la materia **Construcción de Aplicaciones Informáticas**.
