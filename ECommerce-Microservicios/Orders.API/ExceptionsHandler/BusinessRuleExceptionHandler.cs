@@ -18,6 +18,13 @@ namespace Orders.API.ExceptionHandlers
             //si no lo es, devuelve false y el sistema prueba con el siguiente handler
             if (exception is not BusinessRuleException ex) return false;
 
+            //leemos el Correlation ID desde Items donde lo guardo el middleware
+            var correlationId = context.Items["CorrelationId"]?.ToString() ?? "";
+
+            //loggeamos como Warning porque es un error de negocio esperado
+            Serilog.Log.Warning("Error {ErrorCode} - CorrelationId {CorrelationId}: {Message}",
+                ex.ErrorCode, correlationId, ex.Message);
+
             //si el codigo es ORD-005 (stock insuficiente) devuelve 422
             //para ORD-006 (transicion de estado invalida) devuelve 409
             var status = ex.ErrorCode == "ORD-005" ? 422 : 409;
@@ -33,14 +40,13 @@ namespace Orders.API.ExceptionHandlers
                 detail = status == 422
                     ? "No se puede procesar la solicitud."
                     : "No se puede modificar el estado.",
-                //la URL donde ocurrio el error, por ej /api/orders o /api/orders/00000000/status
+                //la URL donde ocurrio el error
                 instance = context.Request.Path.Value,
                 //el codigo del catalogo del TP → ORD-005 o ORD-006
                 errorCode = ex.ErrorCode,
                 //el mensaje que se definio cuando se lanzo la excepcion
-                //por ej "Stock insuficiente para Notebook Dell XPS 15. Disponible: 2, solicitado: 5."
-                //o "Una orden en estado Entregada no puede cambiar a Pendiente."
-                errorMessage = ex.Message
+                errorMessage = ex.Message,
+                correlationId = correlationId
             }, cancellationToken);
 
             //devuelve true para avisarle al sistema que este handler manejo el error

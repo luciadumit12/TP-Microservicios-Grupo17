@@ -18,6 +18,13 @@ namespace Orders.API.ExceptionHandlers
             //si no lo es, devuelve false y el sistema prueba con el siguiente handler
             if (exception is not ValidationException ex) return false;
 
+            //leemos el Correlation ID desde Items donde lo guardo el middleware
+            var correlationId = context.Items["CorrelationId"]?.ToString() ?? "";
+
+            //loggeamos como Warning porque es un error de validacion esperado
+            Serilog.Log.Warning("Error {ErrorCode} - CorrelationId {CorrelationId}: {Message}",
+                ex.ErrorCode, correlationId, ex.Message);
+
             //si es una ValidationException, arma la respuesta 400 con el formato del TP
             context.Response.StatusCode = 400;
             await context.Response.WriteAsJsonAsync(new
@@ -31,8 +38,8 @@ namespace Orders.API.ExceptionHandlers
                 //el codigo del catalogo del TP → ORD-002
                 errorCode = ex.ErrorCode,
                 //el mensaje que se definio cuando se lanzo la excepcion
-                //por ej "Los datos de la orden son invalidos."
-                errorMessage = ex.Message
+                errorMessage = ex.Message,
+                correlationId = correlationId
             }, cancellationToken);
 
             //devuelve true para avisarle al sistema que este handler manejo el error

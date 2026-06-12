@@ -12,6 +12,7 @@
 using Orders.API.Data;
 using Orders.API.ExceptionHandlers;
 using Orders.API.Services;
+using Orders.API.SwaggerFilters;
 //Serilog es una libreria externa que guarda registros de todo lo que pasa en el sistema
 //por ej cuando llega un POST, cuando ocurre un error, etc
 using Serilog;
@@ -53,9 +54,20 @@ builder.Services.AddEndpointsApiExplorer();
 //sin esto swagger no muestra las descripciones ni los ejemplos de cada endpoint
 builder.Services.AddSwaggerGen(options =>
 {
+    //titulo, version y descripcion de la API que aparecen en la cabecera del Swagger
+    options.SwaggerDoc("v1", new()
+    {
+        Title = "Orders.API",
+        Version = "v1",
+        Description = "API para gestion de ordenes del eCommerce."
+    });
+
     var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
     var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
     options.IncludeXmlComments(xmlPath);
+
+    //registra el filtro que pone los ejemplos reales en la seccion Responses de cada endpoint
+    options.OperationFilter<OrdersOperationFilter>();
 });
 
 //se activa el health checks que permite saber si la aplicacion esta funcionando correctamente
@@ -130,10 +142,6 @@ var app = builder.Build();
 //si las tablas ya existen no hace nada
 app.Services.GetRequiredService<DatabaseInitializer>().Initialize();
 
-//Cada vez que se lance un error, esta linea atrapa ese error y
-//busca en la lista de handlers quien puede manejarlo. Activa los handlers y devuelve el JSON.
-app.UseExceptionHandler();
-
 //verifica si la aplicacion esta corriendo desde Visual Studio en modo desarrollo
 //si esta en desarrollo activa el swagger
 //activa la interfaz visual en el navegador y estaria listo para PROBAR
@@ -146,21 +154,30 @@ if (app.Environment.IsDevelopment())
 //redirige las llamadas HTTP a HTTPS para que sean seguras
 app.UseHttpsRedirection();
 
-//CORRELATION ID
-//cada llamada HTTP que llega recibe un id unico llamado Correlation ID
-//si la llamada ya trae un Correlation ID lo usa, si no lo genera automaticamente
-//ese id se agrega a todos los logs de esa llamada para poder rastrearla
-//por ej si ocurre un error, con el Correlation ID podes encontrar todos los logs de esa llamada
+// ─────────────────────────────
+// CORRELATION ID — va ANTES de UseExceptionHandler
+// cada llamada HTTP que llega recibe un id unico llamado Correlation ID
+// si la llamada ya trae un Correlation ID lo usa, si no lo genera automaticamente
+// ese id se guarda en context.Items para que los handlers lo puedan leer cuando hay un error
+// tambien se agrega a todos los logs de esa llamada para poder rastrearla
+// ─────────────────────────────
 app.Use(async (context, next) =>
 {
     var correlationId = context.Request.Headers["X-Correlation-Id"].FirstOrDefault()
                         ?? Guid.NewGuid().ToString();
+    //lo guardamos en Items para que los handlers lo lean cuando hay un error
+    context.Items["CorrelationId"] = correlationId;
     context.Response.Headers["X-Correlation-Id"] = correlationId;
     using (Serilog.Context.LogContext.PushProperty("CorrelationId", correlationId))
     {
         await next();
     }
 });
+
+//Cada vez que se lance un error, esta linea atrapa ese error y
+//busca en la lista de handlers quien puede manejarlo. Activa los handlers y devuelve el JSON.
+//va DESPUES del Correlation ID para que los handlers ya tengan el ID disponible
+app.UseExceptionHandler();
 
 //activa el logging automatico de Serilog para cada llamada HTTP
 //registra cuando llego la llamada, cuanto tardo en procesarse y que resultado devolvio
